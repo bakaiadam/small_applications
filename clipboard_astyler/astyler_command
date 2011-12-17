@@ -1,0 +1,4 @@
+#!/bin/bash
+sed -i -e "s/<\([^ ]\)/< \1/" -e "s/\([^ ]\)>/\1 >/" /tmp/input
+astyle --style=gnu -s2 --pad=oper -C -N -K /tmp/input >output
+
