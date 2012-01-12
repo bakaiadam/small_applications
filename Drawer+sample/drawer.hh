@@ -90,7 +90,8 @@ class Drawer:protected QApplication,public QWidget
       QWidget()
     {
         setFocusPolicy(Qt::StrongFocus);
-        
+        grabMouse();
+        setMouseTracking(true);
     }
 
     //mindenki megirhatja a gyerekekben a ...event fv-eket.
