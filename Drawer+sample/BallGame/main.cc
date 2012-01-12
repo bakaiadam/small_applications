@@ -1,12 +1,14 @@
 #include <../drawer.hh>
 
+#include <QTcpSocket>
 //this game will be like labirinth  lite for mobile phones.
 
 class Ball
 {
 public:
     bool start;
-    Ball(QPointF f):pos(f)
+    const QPointF startpos;
+    Ball(QPointF f):pos(f),startpos(300,300)//nagyon csunya.
     {
         start=true;
     }
@@ -17,20 +19,9 @@ public:
     }
     void add_move(QPointF r)
     {
-        r=QCursor::pos();
-        QCursor::setPos(QPoint(300,300));
-        if (start)
-{            prev_mouse_pos=r;start=false;}
         QPointF prev_mouse_pos2=r;
-        //r=prev_mouse_pos-r;
-        r=r-prev_mouse_pos;
-        qDebug()<<r;
+        r=r-startpos;
         direction+=r;
-        qDebug()<<pos;
-//        pos=prev_mouse_pos;
-        //prev_mouse_pos=prev_mouse_pos2;
-        prev_mouse_pos=QPointF(300,300);
-        
     }
     void move()
     {
@@ -43,42 +34,63 @@ public:
     QPointF pos;
 };
 
+/**
+  Ket fele controller lesz.az egyik a lokalis valtozatokast teszi ra a ballra,a masik meg a netrol jovokkel update-eli.
+  */
+class BallController{
+public:
+    BallController(){}
+    void setBall(Ball * b){this->b=b;}
+    Ball *b;
+};
+class LocalBalllController:public BallController{
+public:
+    LocalBalllController()
+    {
+                QCursor::setPos(QPoint(300,300));
+    }
+
+    void process(QMouseEvent * e)
+    {
+        b->add_move(QCursor::pos());
+        QCursor::setPos(QPoint(300,300));
+    }
+};
+
 class Drawer2: public Drawer
 {
 public:
     QTimer *timer;
-public slots:
-    void timerTimeout()
+public:
+    QVector<Ball*> remoteballs;
+    LocalBalllController c;
+    Drawer2()
     {
-        b.add_move(QPointF());
-        update();        
-    }
-public:    
-    Ball b;
-    Drawer2():b(QPointF(300,300) )
-    {
-        timer = new QTimer((QWidget*)this);
-           timer->setInterval(10);
-     //   connect(timer, SIGNAL(timeout()), (QWidget*)this, SLOT(timerTimeout()));
-    QWidget::startTimer(10);
+        Ball *a=new Ball(QPointF(300,300));
+        remoteballs.push_back(a);
+        c.setBall(a);
+         QWidget::startTimer(10);
     }
     void timerEvent(QTimerEvent *e){
         //b.add_move(QPointF());
-        b.move();
+//        b.move();
+        foreach(Ball * ab,remoteballs)
+        {
+           // qDebug()<<ab;
+            ab->move();
+        }
         update();
     }
 
-    void paintEvent(QPaintEvent *){
+    void paintEvent(QPaintEvent *){//kulonvenni.
         QPainter p(this);
-        p.drawArc(b.getpos().rx(),b.getpos().ry(),100,100,0,5760);
-        //p.drawLine(0,0,300,300);
-        printf("e\n");
+        foreach(Ball * b,remoteballs)
+            p.drawArc(b->getpos().rx(),b->getpos().ry(),100,100,0,5760);
     }
     
     void mouseMoveEvent(QMouseEvent *e)
     {//pos az elozohoz kepest?
-        
-        b.add_move(e->posF());
+        c.process(e);
         update();
     }
     void mousePressEvent(QMouseEvent *){
@@ -86,20 +98,6 @@ public:
     }
     virtual void keyPressEvent(QKeyEvent *e)
     {
-        qDebug()<<e->text();
-     //   return;
-        QPointF f;
-        if (e->text()=="d")
-            f=QPointF(1,0);
-        if (e->text()=="a")
-            f=QPointF(-1,0);
-        if (e->text()=="w")
-            f=QPointF(0,-1);
-        if (e->text()=="s")
-            f=QPointF(0,1);
-        b.add_move(f);
-        update();
-        qDebug()<<e->text();
         exit(0);
     }
 

@@ -1,3 +1,5 @@
+QT += network
+
 SOURCES += \
     main.cc
 
