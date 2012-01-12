@@ -1,6 +1,7 @@
 #include <../drawer.hh>
 
 #include <QTcpSocket>
+#include <QTcpServer>
 //this game will be like labirinth  lite for mobile phones.
 
 class Ball
@@ -57,23 +58,80 @@ public:
     }
 };
 
+class RemoteBallController:public BallController{
+public:
+    QTcpSocket * socket;
+    RemoteBallController(QTcpSocket *socket):socket(socket)
+    {
+    }
+
+    void update()
+    {
+        if (socket->canReadLine())
+        {
+            char f[500];
+            socket->readLine(f,500);
+            qDebug()<<QString(f);
+        }
+    }
+};
+
+
+class server{
+public:
+    QTcpServer * tcpServer;
+    QVector<Ball*> *b;
+    QVector<RemoteBallController*> remote;
+    server(QVector<Ball*> *remoteballs):b(remoteballs)
+    {
+        tcpServer = new QTcpServer();
+        if (!tcpServer->listen(QHostAddress::Any,12345)) {
+            exit(0);
+        }
+    }
+    void update()
+    {
+        if (tcpServer->hasPendingConnections() )
+        {
+            Ball * newb=new Ball(QPointF(300,300));
+            RemoteBallController * r=new RemoteBallController(tcpServer->nextPendingConnection());
+            r->setBall(newb);
+            b->push_back(newb);
+            remote.push_back(r);
+        }
+        foreach (RemoteBallController *r,remote)
+        {
+            r->update();
+        }
+    }
+
+};
+
 class Drawer2: public Drawer
 {
 public:
     QTimer *timer;
 public:
+    server s;
     QVector<Ball*> remoteballs;
     LocalBalllController c;
-    Drawer2()
+public slots:
+    void new_connect()
+    {
+        qDebug()<<"a";
+    }
+public:
+    Drawer2():remoteballs(),s(&remoteballs)
     {
         Ball *a=new Ball(QPointF(300,300));
         remoteballs.push_back(a);
         c.setBall(a);
-         QWidget::startTimer(10);
+        QWidget::startTimer(10);
     }
     void timerEvent(QTimerEvent *e){
         //b.add_move(QPointF());
 //        b.move();
+        s.update();
         foreach(Ball * ab,remoteballs)
         {
            // qDebug()<<ab;
@@ -98,6 +156,7 @@ public:
     }
     virtual void keyPressEvent(QKeyEvent *e)
     {
+        if (e->text()=="q")
         exit(0);
     }
 
@@ -108,6 +167,7 @@ public:
 int main()
 {
     Drawer2 d;
-    //d.start(800,600);
-    d.start();
+    d.start(800,600);
+//    d.start();
 }
+
