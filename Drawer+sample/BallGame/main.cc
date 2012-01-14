@@ -36,11 +36,21 @@ public:
         pos+=direction*szorzo;
         //qDebug()<<direction;
     }
-    QString toString()
+
+    QString towholeString()
     {
-        QString msg=QString::number((int)getpos().rx())+" "
+        QString msg=
+                QString::number((int)getpos().rx())+" "
                 +QString::number((int)getpos().ry())+" "
                 +QString::number((int)getdirection().rx())+" "
+                +QString::number((int)getdirection().ry())+" ";
+        return msg;
+    }
+
+    QString toString()
+    {
+        QString msg=
+                QString::number((int)getdirection().rx())+" "
                 +QString::number((int)getdirection().ry())+" ";
         return msg;
     }
@@ -89,11 +99,11 @@ public:
                 //qDebug()<<"reader kuldott"<<QString(f);
                 QStringList l=QString(f).split(" ");
 
-                b->getpos().setX(l[0].toInt());
-                b->getpos().setY(l[1].toInt());
+                //b->getpos().setX(l[0].toInt());
+                //b->getpos().setY(l[1].toInt());
 
-                b->getdirection().setX(l[2].toInt());
-                b->getdirection().setY(l[3].toInt());
+                b->getdirection().setX(l[0].toInt());
+                b->getdirection().setY(l[1].toInt());
 
         }
     }
@@ -136,7 +146,8 @@ public:
             socket->readLine(f,1000);
             qDebug()<<QString(f);
             QStringList l=QString(f).split(" ");
-            int elemszam=(l.size()-1)/4;
+            int fieldnum_for_ball=4;
+            int elemszam=(l.size()-1)/fieldnum_for_ball;
             while (elemszam>b->size())
                 b->push_back(new Ball(QPointF(300,300)));
             QVector<int> ii;
@@ -154,11 +165,11 @@ public:
                 }
                 else
                     index=i+1-pp;
-                 b->operator [](index)->getpos().setX(l[(i)*4+1].toInt());
-                 b->operator [](index)->getpos().setY(l[(i)*4+2].toInt());
+                 b->operator [](index)->getpos().setX(l[(i)*fieldnum_for_ball+1].toInt());
+                 b->operator [](index)->getpos().setY(l[(i)*fieldnum_for_ball+2].toInt());
 
-                 b->operator [](index)->getdirection().setX(l[(i)*4+3].toInt());
-                 b->operator [](index)->getdirection().setY(l[(i)*4+4].toInt());
+                 b->operator [](index)->getdirection().setX(l[(i)*fieldnum_for_ball+3].toInt());
+                 b->operator [](index)->getdirection().setY(l[(i)*fieldnum_for_ball+4].toInt());
 
                 }
 
@@ -207,7 +218,7 @@ public:
         QString msg;
         foreach (Ball * w,*b)
         {
-            msg+=w->toString();
+            msg+=w->towholeString();
         }
 
         //most pedig mindenkinek elkuldom a valtoztatasokat.
@@ -217,7 +228,6 @@ public:
             r->send(QString::number(i)+" "+msg);
             i++;
         }
-
     }
 
 };
@@ -240,7 +250,7 @@ public:
         remoteballs=new QVector<Ball*>();
         remoteballs->push_back(a);
         c.setBall(a);
-        QWidget::startTimer(10);
+        QWidget::startTimer(20);
     }
     void args(int argc,char **argv)
     {
