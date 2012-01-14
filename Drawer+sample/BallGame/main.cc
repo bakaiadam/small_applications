@@ -18,16 +18,31 @@ public:
     {
         return pos;
     }
+    QPointF &getdirection()
+    {
+        return direction;
+    }
+
     void add_move(QPointF r)
     {
         QPointF prev_mouse_pos2=r;
         r=r-startpos;
         direction+=r;
+//        qDebug()<<direction;
     }
     void move()
     {
         double szorzo=0.001;
-        pos+=direction*szorzo;        
+        pos+=direction*szorzo;
+        //qDebug()<<direction;
+    }
+    QString toString()
+    {
+        QString msg=QString::number((int)getpos().rx())+" "
+                +QString::number((int)getpos().ry())+" "
+                +QString::number((int)getdirection().rx())+" "
+                +QString::number((int)getdirection().ry())+" ";
+        return msg;
     }
 
     QPointF prev_mouse_pos;
@@ -77,7 +92,8 @@ public:
                 b->getpos().setX(l[0].toInt());
                 b->getpos().setY(l[1].toInt());
 
-
+                b->getdirection().setX(l[2].toInt());
+                b->getdirection().setY(l[3].toInt());
 
         }
     }
@@ -101,6 +117,15 @@ public:
     }
     void update()
     {
+        ownball=b->first();
+        {
+            //QString msg=QString::number((int)ownball->getpos().rx())+" "+QString::number((int)ownball->getpos().ry())+"\n";
+            QString msg=ownball->toString()+"\n";
+            qDebug()<<"kliens kuld"<<msg;
+            socket->write(msg.toAscii().data(),msg.length());
+        }
+
+
         if (socket->canReadLine())
         {
             Ball * first=b->first();
@@ -111,31 +136,35 @@ public:
             socket->readLine(f,1000);
             qDebug()<<QString(f);
             QStringList l=QString(f).split(" ");
-            int elemszam=(l.size()-1)/2;
+            int elemszam=(l.size()-1)/4;
             while (elemszam>b->size())
                 b->push_back(new Ball(QPointF(300,300)));
             QVector<int> ii;
             int pp=0;
-int cel=(l.size()-1-1)/2;
-qDebug()<<"a"<<l.size()<<cel;
-            for (int i=1;i<cel;i++)
-                //ii.push_back(l[i].toInt() );
-                if (i-1!=l[0].toInt() )
-          //      b->push_back(new Ball(QPointF(l[i*2+pp].toInt(),l[i*2+pp+1].toInt()) ));
+            int own_index=l[0].toInt();
+
+            for (int i=0;i<elemszam;i++)
                 {
-                    qDebug()<<126<<" "<<i<<" "<<l[i*2+pp-1].toInt()<<" "<<l[i*2+pp].toInt();
-                    b->operator [](i)->getpos().setX(l[i*2+pp-1].toInt());
-                 b->operator [](i)->getpos().setY(l[i*2+pp].toInt());
+                int index;
+                if (i==own_index)
+                {
+                    pp=1;
+                    index=0;
+//                    continue;
                 }
-                    else pp=0;
+                else
+                    index=i+1-pp;
+                 b->operator [](index)->getpos().setX(l[(i)*4+1].toInt());
+                 b->operator [](index)->getpos().setY(l[(i)*4+2].toInt());
+
+                 b->operator [](index)->getdirection().setX(l[(i)*4+3].toInt());
+                 b->operator [](index)->getdirection().setY(l[(i)*4+4].toInt());
+
+                }
+
+
             for (int i=0;i<b->size();i++)
                 qDebug()<<b->operator [](i)->getpos().rx()<<b->operator [](i)->getpos().ry();
-        }
-        ownball=b->first();
-        {
-            QString msg=QString::number((int)ownball->getpos().rx())+" "+QString::number((int)ownball->getpos().ry())+"\n";
-            qDebug()<<"kliens kuld"<<msg;
-            socket->write(msg.toAscii().data(),msg.length());
         }
     }
 };
@@ -168,11 +197,17 @@ public:
             r->update();
         }//mindenkitol bekertem a valtoztatasokat
 
+        foreach(Ball * ab,*b)
+        {
+           // qDebug()<<ab;
+            ab->move();
+        }
+
 
         QString msg;
         foreach (Ball * w,*b)
         {
-            msg+=QString::number((int)w->getpos().rx())+" "+QString::number((int)w->getpos().ry())+" ";
+            msg+=w->toString();
         }
 
         //most pedig mindenkinek elkuldom a valtoztatasokat.
@@ -220,19 +255,18 @@ public:
     void timerEvent(QTimerEvent *e){
         //b.add_move(QPointF());
 //        b.move();
-        if (s) s->update();
+        if (s) s->update();//mindenkinek elkuldom az infokat,es lekerem a helyeket.
+        update();
         if (cli) cli->update();
         foreach(Ball * ab,*remoteballs)
         {
            // qDebug()<<ab;
             ab->move();
         }
-        update();
     }
 
     void paintEvent(QPaintEvent *){//kulonvenni.
         QPainter p(this);
-        qDebug()<<"remoteszam:"<<remoteballs->size();
         foreach(Ball * b,*remoteballs)
             p.drawArc(b->getpos().rx(),b->getpos().ry(),100,100,0,5760);
     }
