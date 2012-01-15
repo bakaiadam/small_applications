@@ -54,6 +54,30 @@ public:
                 +QString::number((int)getdirection().ry())+" ";
         return msg;
     }
+    QByteArray toarray()
+    {
+        QByteArray msg;
+        qint32 dirx=(qint32)getdirection().rx();
+        qint32 diry=(qint32)getdirection().ry();
+        msg.append (  (char *)&dirx,4 );
+        msg.append (  (char *)&diry,4 );
+        return msg;
+    }
+
+    QByteArray towholearray()
+    {
+        QByteArray msg;
+        qint32 posx=(qint32)getpos().rx();
+        qint32 posy=(qint32)getpos().ry();
+        qint32 dirx=(qint32)getdirection().rx();
+        qint32 diry=(qint32)getdirection().ry();
+
+        msg.append (  (char *)&posx,4 );
+        msg.append (  (char *)&posy,4 );
+        msg.append (  (char *)&dirx,4 );
+        msg.append (  (char *)&diry,4 );
+        return msg;
+    }
 
     QPointF prev_mouse_pos;
     QPointF direction;
@@ -92,26 +116,26 @@ public:
 
     void update()
     {
-        while (socket->canReadLine())
+
+        while (socket->bytesAvailable()>=8)
         {
-                char f[1000];
-                socket->readLine(f,1000);
-                //qDebug()<<"reader kuldott"<<QString(f);
-                QStringList l=QString(f).split(" ");
 
                 //b->getpos().setX(l[0].toInt());
                 //b->getpos().setY(l[1].toInt());
+                qint32 dirx;
+                qint32 diry;
+                socket->read((char*)&dirx,4);
+                socket->read((char*)&diry,4);
 
-                b->getdirection().setX(l[0].toInt());
-                b->getdirection().setY(l[1].toInt());
+                b->getdirection().setX(dirx);
+                b->getdirection().setY(diry);
 
         }
     }
 
-    void send(QString a)
+    void send(QByteArray a)
     {
-        QString msg=a+"\n";
-        socket->write(msg.toAscii().data(),msg.length());
+        socket->write(a);
     }
 };
 
@@ -130,29 +154,38 @@ public:
         ownball=b->first();
         {
             //QString msg=QString::number((int)ownball->getpos().rx())+" "+QString::number((int)ownball->getpos().ry())+"\n";
-            QString msg=ownball->toString()+"\n";
-            qDebug()<<"kliens kuld"<<msg;
-            socket->write(msg.toAscii().data(),msg.length());
+
+            socket->write(ownball->towholearray() );
         }
 
 
-        while (socket->canReadLine())
+        while (socket->bytesAvailable()>=8)
         {
             Ball * first=b->first();
       //      for (int i=1;i<b->size();i++)
         //    {delete b->back();b->pop_back();}
+qint32 ownindex;
+qint32 lsize;
+socket->read((char*)&ownindex,4);
+socket->read((char*)&lsize,4);
+QVector<qint32> l;
+l.push_back(ownindex);
+int fieldnum_for_ball=4;
+for (int i=0;i<lsize;i++)
+{
+    for (int j=0;j<fieldnum_for_ball;j++)
+    {
+        qint32 tmp;
+        socket->read((char*)&tmp,4);
+        l.push_back(tmp);
+    }
+}
 
-            char f[1000];
-            socket->readLine(f,1000);
-            qDebug()<<QString(f);
-            QStringList l=QString(f).split(" ");
-            int fieldnum_for_ball=4;
             int elemszam=(l.size()-1)/fieldnum_for_ball;
             while (elemszam>b->size())
                 b->push_back(new Ball(QPointF(300,300)));
-            QVector<int> ii;
             int pp=0;
-            int own_index=l[0].toInt()-1;
+            int own_index=l[0];
 
             for (int i=0;i<elemszam;i++)
                 {
@@ -161,22 +194,16 @@ public:
                 {
                     pp=1;
                     index=0;
-//                    continue;
                 }
                 else
                     index=i+1-pp;
-                qDebug()<<i<<" "<<pp<<" "<<index<<elemszam<<b->size()<<b->operator [](index)->getpos();
-                 b->operator [](index)->getpos().setX(l[(i)*fieldnum_for_ball+1].toInt());
-                 b->operator [](index)->getpos().setY(l[(i)*fieldnum_for_ball+2].toInt());
+                 b->operator [](index)->getpos().setX(l[(i)*fieldnum_for_ball+1]);
+                 b->operator [](index)->getpos().setY(l[(i)*fieldnum_for_ball+2]);
 
-                 b->operator [](index)->getdirection().setX(l[(i)*fieldnum_for_ball+3].toInt());
-                 b->operator [](index)->getdirection().setY(l[(i)*fieldnum_for_ball+4].toInt());
+                 b->operator [](index)->getdirection().setX(l[(i)*fieldnum_for_ball+3]);
+                 b->operator [](index)->getdirection().setY(l[(i)*fieldnum_for_ball+4]);
 
                 }
-
-
-            for (int i=0;i<b->size();i++)
-                qDebug()<<b->operator [](i)->getpos().rx()<<b->operator [](i)->getpos().ry();
         }
     }
 };
@@ -216,17 +243,25 @@ public:
         }
 
 
-        QString msg;
+        QByteArray msg;
+        qint32 bsize=b->size();
+        msg.append((char*)&bsize,4);
+
+        QByteArray msg2;
         foreach (Ball * w,*b)
         {
-            msg+=w->towholeString();
+            msg2+=w->towholearray();
+            QByteArray b=w->towholearray();
         }
 
         //most pedig mindenkinek elkuldom a valtoztatasokat.
-        int i=1;
+        qint32 i=0;
         foreach (RemoteBallController *r,remote)
         {
-            r->send(QString::number(i)+" "+msg);
+            QByteArray msg3;
+            msg3.append((char*)&i,4);
+
+            r->send(msg3+msg+msg2);
             i++;
         }
     }
@@ -258,7 +293,7 @@ public:
             c.setBall(a);
         }
 
-        QWidget::startTimer(20);
+        QWidget::startTimer(8);
     }
 
     void timerEvent(QTimerEvent *e){
