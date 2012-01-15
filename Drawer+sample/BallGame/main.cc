@@ -509,10 +509,13 @@ void calculate_collision(Ball * a,Ball * b,qreal b2m)
 
 bool wall_collision(Ball * a)
 {
+    qreal restitution=0.9;
+    restitution*=-1;
+
     int w=800,h=600;
     if (a->getpos().rx()<0)
     {
-        a->getdirection().rx()*=-1.;
+        a->getdirection().rx()*=restitution;
         a->getpos().rx()=0;
         qDebug()<<"balrol";
     return true;
@@ -520,7 +523,7 @@ bool wall_collision(Ball * a)
 else
     if (a->getpos().rx()>w-ballsize*3)
     {
-        a->getdirection().rx()*=-1.;
+        a->getdirection().rx()*=restitution;
         a->getpos().rx()=w-ballsize*3;
         qDebug()<<"jobbrol";
         return true;
@@ -528,7 +531,7 @@ else
 
     if (a->getpos().ry()<0)
     {
-        a->getdirection().ry()*=-1.;
+        a->getdirection().ry()*=restitution;
         a->getpos().ry()=0;
         qDebug()<<"fentrol";
         return true;
@@ -536,7 +539,7 @@ else
 else
     if (a->getpos().ry()>h-ballsize*3)
     {
-        a->getdirection().ry()*=-1.;
+        a->getdirection().ry()*=restitution;
         a->getpos().ry()=h-ballsize*3;
         qDebug()<<"lentrol";
         return true;
