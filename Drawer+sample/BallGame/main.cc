@@ -402,8 +402,13 @@ public:
 
     void paintEvent(QPaintEvent *){//kulonvenni.
         QPainter p(this);
+        int i=0;
         foreach(Ball * b,*remoteballs)
-            p.drawArc(b->getpos().rx(),b->getpos().ry(),ballsize,ballsize,0,5760);
+        {
+            p.setBrush(QBrush(QColor::fromHsv(i*360/remoteballs->size()+1,255,255) ));
+            p.drawChord(b->getpos().rx(),b->getpos().ry(),ballsize,ballsize,0,5760);
+        i++;
+        }
     }
     
     void mouseMoveEvent(QMouseEvent *e)
