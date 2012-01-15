@@ -130,8 +130,11 @@ public:
 class RemoteBallController:public BallController{
 public:
     QTcpSocket * socket;
+    qreal sendx,sendy;
     RemoteBallController(QTcpSocket *socket):socket(socket)
     {
+        sendx=0;
+        sendy=0;
     }
 
     void update()
@@ -146,30 +149,32 @@ public:
                 qint32 diry;
                 socket->read((char*)&dirx,4);
                 socket->read((char*)&diry,4);
-
+                if ( (sendx!=0 || sendy!=0) && !(dirx==sendx && diry==sendy) )  return;//ha a sendx sendy be van allitva akkor egyeznie kell a dirx diry-szal
                // qDebug()<<"read_dirbef"<<b->getdirection().rx()<<b->getdirection().ry()
                 //<<dirx<<diry;
 
 //                b->getdirection().setX(dirx);
   //              b->getdirection().setY(diry);
   //              if ((b->getdirection().rx()*(-1)!=(dirx) ) )
-                if (qAbs(b->getdirection().rx()*-1-(dirx) )>15 )
+             //   if (qAbs(b->getdirection().rx()*-1-(dirx) )>15 )
                 //if (dirx*-1!=b->getdirection().rx())
 
                 b->getdirection().rx()=(dirx);
 //                if ((b->getdirection().ry()*(-1)!=(diry) ) )
     //            if (qAbs(b->getdirection().ry()*-(diry) )<1000 )
 //                if (diry*-1!=b->getdirection().ry())
-                if (qAbs(b->getdirection().ry()*-1-(diry) )>15 )
+               // if (qAbs(b->getdirection().ry()*-1-(diry) )>15 )
                 b->getdirection().ry()=(diry);
-
+                sendx=0;sendy=0;
       //          qDebug()<<"read_dir"<<b->getdirection().rx()<<b->getdirection().ry();
 
         }
     }
 
-    void send(QByteArray a)
+    void send(QByteArray a,qreal sendx=0,qreal sendy=0)
     {
+        this->sendx=sendx;
+        this->sendy=sendy;
         socket->write(a);
     }
 };
@@ -192,18 +197,9 @@ public:
         ownball=b->first();
         qreal rx=ownball->getdirection().rx();
         qreal ry=ownball->getdirection().ry();
+qreal l_x,l_y;
 
 
-        //qDebug()<<last_sent_x<<ownball->getdirection().rx();
-        //if (last_sent_x== ownball->getdirection().rx() && last_sent_y==ownball->getdirection().ry() )
-        {//nem cseszegette a szerver az iranyvektort.
-            //QString msg=QString::number((int)ownball->getpos().rx())+" "+QString::number((int)ownball->getpos().ry())+"\n";
-         //   qDebug()<<"sent"<<ownball->getdirection().rx()<<ownball->getdirection().ry();
-            //socket->write(ownball->towholearray() );
-            ownball->getdirection().rx()=rx;
-            ownball->getdirection().ry()=ry;
-            socket->write(ownball->toarray());
-        }
 
         while (socket->bytesAvailable()>=8)
         {
@@ -254,9 +250,24 @@ for (int i=0;i<lsize;i++)
 */
             }
         }
+        qDebug()<<"rec"<<ownball->getdirection().rx()<<ownball->getdirection().ry();
+        l_x=b->operator [](0)->getdirection().rx();
+        l_y=b->operator [](0)->getdirection().ry();
 
-        last_sent_x=ownball->getdirection().rx();
-        last_sent_y=ownball->getdirection().ry();
+        //qDebug()<<last_sent_x<<ownball->getdirection().rx();
+        if (last_sent_x== ownball->getdirection().rx() && last_sent_y==ownball->getdirection().ry() )
+        {//nem cseszegette a szerver az iranyvektort.
+            //QString msg=QString::number((int)ownball->getpos().rx())+" "+QString::number((int)ownball->getpos().ry())+"\n";
+            //socket->write(ownball->towholearray() );
+            ownball->getdirection().rx()=rx;
+            ownball->getdirection().ry()=ry;
+        }
+        socket->write(ownball->toarray());
+        qDebug()<<"sent"<<ownball->getdirection().rx()<<ownball->getdirection().ry();
+
+
+        last_sent_x=l_x;
+        last_sent_y=l_y;
 
 
     }
@@ -288,9 +299,11 @@ public:
                 if (distance(icenter,jcenter)<ballsize)
                     {
                     calculate_collision(b->operator [](i),b->operator [](j));
+                    ret.push_back(i);
+                    ret.push_back(j);
                     }
             }
-            wall_collision(b->operator [](i));
+            if (wall_collision(b->operator [](i))) ret.push_back(i);
 
         }
         foreach(Ball * ab,*b)
@@ -339,7 +352,12 @@ public:
             QByteArray msg3;
             msg3.append((char*)&i,4);
 
-            r->send(msg3+msg+msg2);
+//            r->send(msg3+msg+msg2);
+            if (new_directions.contains(i))
+                    r->send(msg3+msg+msg2,r->b->getdirection().rx(),r->b->getdirection().ry());
+                else
+                r->send(msg3+msg+msg2);
+
             i++;
         }
     }
