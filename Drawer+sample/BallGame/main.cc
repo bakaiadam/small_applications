@@ -270,6 +270,8 @@ public:
         foreach(Ball * ab,*remoteballs)
         {
            // qDebug()<<ab;
+            if (ab->getpos().rx()<0)
+                ab->getpos().rx()=0;
             ab->move();
         }
     }
