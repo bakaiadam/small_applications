@@ -92,7 +92,7 @@ public:
 
     void update()
     {
-        if (socket->canReadLine())
+        while (socket->canReadLine())
         {
                 char f[1000];
                 socket->readLine(f,1000);
@@ -136,7 +136,7 @@ public:
         }
 
 
-        if (socket->canReadLine())
+        while (socket->canReadLine())
         {
             Ball * first=b->first();
       //      for (int i=1;i<b->size();i++)
@@ -152,11 +152,11 @@ public:
                 b->push_back(new Ball(QPointF(300,300)));
             QVector<int> ii;
             int pp=0;
-            int own_index=l[0].toInt();
+            int own_index=l[0].toInt()-1;
 
             for (int i=0;i<elemszam;i++)
                 {
-                int index;
+                int index=0;
                 if (i==own_index)
                 {
                     pp=1;
@@ -165,6 +165,7 @@ public:
                 }
                 else
                     index=i+1-pp;
+                qDebug()<<i<<" "<<pp<<" "<<index<<elemszam<<b->size()<<b->operator [](index)->getpos();
                  b->operator [](index)->getpos().setX(l[(i)*fieldnum_for_ball+1].toInt());
                  b->operator [](index)->getpos().setY(l[(i)*fieldnum_for_ball+2].toInt());
 
@@ -242,24 +243,22 @@ public:
     QVector<Ball*> *remoteballs;
     LocalBalllController c;
 public:
-    Drawer2():remoteballs()
+    Drawer2(int argc,char **argv):remoteballs()
     {
         s=0;
         cli=0;
-        Ball *a=new Ball(QPointF(300,300));
         remoteballs=new QVector<Ball*>();
-        remoteballs->push_back(a);
-        c.setBall(a);
-        QWidget::startTimer(20);
-    }
-    void args(int argc,char **argv)
-    {
         if (argc==1)
             s=new server(remoteballs);
         else
         {
             cli=new client(QString(argv[1]),remoteballs);
+            Ball *a=new Ball(QPointF(300,300));
+            remoteballs->push_back(a);
+            c.setBall(a);
         }
+
+        QWidget::startTimer(20);
     }
 
     void timerEvent(QTimerEvent *e){
@@ -301,8 +300,7 @@ public:
 
 int main(int argc,char **argv)
 {
-    Drawer2 d;
-    d.args(argc,argv);
+    Drawer2 d(argc,argv);
     d.start(800,600);
 //    d.start();
 }
