@@ -1,8 +1,26 @@
 #include <../drawer.hh>
 
+#define ballsize 10
+
 #include <QTcpSocket>
 #include <QTcpServer>
 //this game will be like labirinth  lite for mobile phones.
+
+qreal distance(QPointF &a,QPointF &b)
+{
+    qreal asq=qAbs(a.rx()-b.rx());asq*=asq;
+    qreal bsq=qAbs(a.ry()-b.ry());bsq*=bsq;
+    return sqrt(asq+bsq);
+}
+
+qreal sqr(qreal a)
+{
+    return a*a;
+}
+
+class Ball;
+
+void calculate_collision(Ball * a,Ball * b);
 
 class Ball
 {
@@ -202,8 +220,11 @@ for (int i=0;i<lsize;i++)
 
                  b->operator [](index)->getdirection().setX(l[(i)*fieldnum_for_ball+3]);
                  b->operator [](index)->getdirection().setY(l[(i)*fieldnum_for_ball+4]);
-
-                }
+                /* if (index==0)
+                     qDebug()<<b->operator [](index)->getpos().rx()<<b->operator [](index)->getpos().ry()
+                               <<b->operator [](index)->getdirection().rx()<<b->operator [](index)->getdirection().ry();
+*/
+            }
         }
     }
 };
@@ -219,6 +240,29 @@ public:
         if (!tcpServer->listen(QHostAddress::Any,12345)) {
             exit(0);
         }
+    }
+    void gameplay_logic()
+    {
+        for (int i=0;i<b->size();i++)
+        {
+            QPointF icenter(b->operator [](i)->getpos().rx()+ballsize/2,b->operator [](i)->getpos().ry()+ballsize/2  );
+            for (int j=i+1;j<b->size();j++)
+            {
+                QPointF jcenter(
+                            b->operator [](j)->getpos().rx()+ballsize/2,
+                            b->operator [](j)->getpos().ry()+ballsize/2  );
+                if (distance(icenter,jcenter)<ballsize)
+                    {
+                    calculate_collision(b->operator [](i),b->operator [](j));
+                    }
+            }
+        }
+        foreach(Ball * ab,*b)
+        {
+           // qDebug()<<ab;
+            ab->move();
+        }
+
     }
     void update()
     {
@@ -236,12 +280,7 @@ public:
             r->update();
         }//mindenkitol bekertem a valtoztatasokat
 
-        foreach(Ball * ab,*b)
-        {
-           // qDebug()<<ab;
-            ab->move();
-        }
-
+        gameplay_logic();//do phisycs and stuff
 
         QByteArray msg;
         qint32 bsize=b->size();
@@ -314,7 +353,7 @@ public:
     void paintEvent(QPaintEvent *){//kulonvenni.
         QPainter p(this);
         foreach(Ball * b,*remoteballs)
-            p.drawArc(b->getpos().rx(),b->getpos().ry(),100,100,0,5760);
+            p.drawArc(b->getpos().rx(),b->getpos().ry(),ballsize,ballsize,0,5760);
     }
     
     void mouseMoveEvent(QMouseEvent *e)
@@ -342,3 +381,32 @@ int main(int argc,char **argv)
 //    d.start();
 }
 
+
+
+void calculate_collision(Ball * a,Ball * b)
+{
+    //forras: http://www.developer.nokia.com/Community/Wiki/Collision_for_Balls
+    qreal dx=a->getpos().rx()-b->getpos().rx();
+    qreal dy=a->getpos().ry()-b->getpos().ry();
+    qreal colision_angle=atan2(dx,dy);
+    qreal speed1=sqrt(sqr(a->getdirection().rx())+sqr(b->getdirection().rx()) );
+    qreal speed2=sqrt(sqr(a->getdirection().ry())+sqr(b->getdirection().ry()) );
+    qreal direction1=atan2(a->getdirection().rx(),a->getdirection().ry());
+    qreal direction2=atan2(b->getdirection().rx(),b->getdirection().ry());
+
+    qreal vx_1 = speed1 * cos(direction1 - colision_angle);
+    qreal vy_1 = speed1 * sin(direction1 - colision_angle);
+    qreal vx_2 = speed2 * cos(direction2 - colision_angle);
+    qreal vy_2 = speed2 * sin(direction2 - colision_angle);
+
+    qreal ball1mass=1,ball2mass=1;
+    qreal final_vx_1 = ((ball1mass - ball2mass) * vx_1 + (ball2mass + ball2mass) * vx_2)/(ball1mass + ball2mass);
+    qreal final_vx_2 = ((ball1mass + ball1mass) * vx_1 + (ball2mass - ball1mass) * vx_2)/(ball1mass + ball2mass);
+    qreal final_vy_1 = vy_1;
+    qreal final_vy_2 = vy_2;
+
+     a->getdirection().rx() = cos(colision_angle) * final_vx_1 + cos(colision_angle + M_PI/2) * final_vy_1;
+     a->getdirection().ry() = sin(colision_angle) * final_vx_1 + sin(colision_angle + M_PI/2) * final_vy_1;
+     b->getdirection().rx() = cos(colision_angle) * final_vx_2 + cos(colision_angle + M_PI/2) * final_vy_2;
+     b->getdirection().ry() = sin(colision_angle) * final_vx_2 + sin(colision_angle + M_PI/2) * final_vy_2;
+}
