@@ -22,7 +22,7 @@ class Ball;
 
 void calculate_collision(Ball * a,Ball * b, qreal b2m=1);
 
-void wall_collision(Ball * a);
+bool wall_collision(Ball * a);
 
 class Ball
 {
@@ -147,15 +147,20 @@ public:
                 socket->read((char*)&dirx,4);
                 socket->read((char*)&diry,4);
 
-//                qDebug()<<"read_dirbef"<<b->getdirection().rx()<<b->getdirection().ry();
+                qDebug()<<"read_dirbef"<<b->getdirection().rx()<<b->getdirection().ry()
+                <<dirx<<diry;
 
 //                b->getdirection().setX(dirx);
   //              b->getdirection().setY(diry);
   //              if ((b->getdirection().rx()*(-1)!=(dirx) ) )
-  //              if (qAbs(b->getdirection().rx()*-(dirx) )<1000 )
+                if (qAbs(b->getdirection().rx()*-1-(dirx) )>15 )
+                //if (dirx*-1!=b->getdirection().rx())
+
                 b->getdirection().rx()=(dirx);
 //                if ((b->getdirection().ry()*(-1)!=(diry) ) )
     //            if (qAbs(b->getdirection().ry()*-(diry) )<1000 )
+//                if (diry*-1!=b->getdirection().ry())
+                if (qAbs(b->getdirection().ry()*-1-(diry) )>15 )
                 b->getdirection().ry()=(diry);
 
       //          qDebug()<<"read_dir"<<b->getdirection().rx()<<b->getdirection().ry();
@@ -174,21 +179,31 @@ public:
     QVector<Ball*> *b;
     QTcpSocket * socket;
     Ball * ownball;
+    qreal last_sent_x,last_sent_y;
     client(QString host,QVector<Ball*> *b):b(b)
     {
         socket=new QTcpSocket();
         socket->connectToHost(host,12345);
+        last_sent_x=0;
+        last_sent_y=0;
     }
     void update()
     {
         ownball=b->first();
-        {
+        qreal rx=ownball->getdirection().rx();
+        qreal ry=ownball->getdirection().ry();
+
+
+        //qDebug()<<last_sent_x<<ownball->getdirection().rx();
+        //if (last_sent_x== ownball->getdirection().rx() && last_sent_y==ownball->getdirection().ry() )
+        {//nem cseszegette a szerver az iranyvektort.
             //QString msg=QString::number((int)ownball->getpos().rx())+" "+QString::number((int)ownball->getpos().ry())+"\n";
             qDebug()<<"sent"<<ownball->getdirection().rx()<<ownball->getdirection().ry();
             //socket->write(ownball->towholearray() );
+            ownball->getdirection().rx()=rx;
+            ownball->getdirection().ry()=ry;
             socket->write(ownball->toarray());
         }
-
 
         while (socket->bytesAvailable()>=8)
         {
@@ -239,6 +254,11 @@ for (int i=0;i<lsize;i++)
 
             }
         }
+
+        last_sent_x=ownball->getdirection().rx();
+        last_sent_y=ownball->getdirection().ry();
+
+
     }
 };
 
@@ -254,8 +274,9 @@ public:
             exit(0);
         }
     }
-    void gameplay_logic()
+    QVector<int> gameplay_logic()
     {
+        QVector<int> ret;
         for (int i=0;i<b->size();i++)
         {
             QPointF icenter(b->operator [](i)->getpos().rx()+ballsize/2,b->operator [](i)->getpos().ry()+ballsize/2  );
@@ -270,13 +291,14 @@ public:
                     }
             }
             wall_collision(b->operator [](i));
+
         }
         foreach(Ball * ab,*b)
         {
            // qDebug()<<ab;
             ab->move();
         }
-
+        return ret;
     }
     void update()
     {
@@ -294,8 +316,11 @@ public:
             r->update();
         }//mindenkitol bekertem a valtoztatasokat
 
-        gameplay_logic();//do phisycs and stuff
+        QVector<int> new_directions=gameplay_logic();//do phisycs and stuff
+        for (int i=0;i<new_directions.size();i++)
+        {
 
+        }
         QByteArray msg;
         qint32 bsize=b->size();
         msg.append((char*)&bsize,4);
@@ -418,7 +443,7 @@ void calculate_collision(Ball * a,Ball * b,qreal b2m)
      b->getdirection().ry() = sin(colision_angle) * final_vx_2 + sin(colision_angle + M_PI/2) * final_vy_2;
 }
 
-void wall_collision(Ball * a)
+bool wall_collision(Ball * a)
 {
     int w=800,h=600;
     if (a->getpos().rx()<0)
@@ -426,6 +451,7 @@ void wall_collision(Ball * a)
         a->getdirection().rx()*=-1.;
         a->getpos().rx()=0;
         qDebug()<<"balrol";
+    return true;
     }
 else
     if (a->getpos().rx()>w-ballsize*3)
@@ -433,6 +459,7 @@ else
         a->getdirection().rx()*=-1.;
         a->getpos().rx()=w-ballsize*3;
         qDebug()<<"jobbrol";
+        return true;
     }
 
     if (a->getpos().ry()<0)
@@ -440,6 +467,7 @@ else
         a->getdirection().ry()*=-1.;
         a->getpos().ry()=0;
         qDebug()<<"fentrol";
+        return true;
     }
 else
     if (a->getpos().ry()>h-ballsize*3)
@@ -447,9 +475,8 @@ else
         a->getdirection().ry()*=-1.;
         a->getpos().ry()=h-ballsize*3;
         qDebug()<<"lentrol";
+        return true;
     }
 
-
-
-
+    return false;
 }
