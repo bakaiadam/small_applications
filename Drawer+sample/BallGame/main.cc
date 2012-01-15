@@ -20,7 +20,9 @@ qreal sqr(qreal a)
 
 class Ball;
 
-void calculate_collision(Ball * a,Ball * b);
+void calculate_collision(Ball * a,Ball * b, qreal b2m=1);
+
+void wall_collision(Ball * a);
 
 class Ball
 {
@@ -145,8 +147,18 @@ public:
                 socket->read((char*)&dirx,4);
                 socket->read((char*)&diry,4);
 
-                b->getdirection().setX(dirx);
-                b->getdirection().setY(diry);
+//                qDebug()<<"read_dirbef"<<b->getdirection().rx()<<b->getdirection().ry();
+
+//                b->getdirection().setX(dirx);
+  //              b->getdirection().setY(diry);
+  //              if ((b->getdirection().rx()*(-1)!=(dirx) ) )
+  //              if (qAbs(b->getdirection().rx()*-(dirx) )<1000 )
+                b->getdirection().rx()=(dirx);
+//                if ((b->getdirection().ry()*(-1)!=(diry) ) )
+    //            if (qAbs(b->getdirection().ry()*-(diry) )<1000 )
+                b->getdirection().ry()=(diry);
+
+      //          qDebug()<<"read_dir"<<b->getdirection().rx()<<b->getdirection().ry();
 
         }
     }
@@ -172,8 +184,9 @@ public:
         ownball=b->first();
         {
             //QString msg=QString::number((int)ownball->getpos().rx())+" "+QString::number((int)ownball->getpos().ry())+"\n";
-
-            socket->write(ownball->towholearray() );
+            qDebug()<<"sent"<<ownball->getdirection().rx()<<ownball->getdirection().ry();
+            //socket->write(ownball->towholearray() );
+            socket->write(ownball->toarray());
         }
 
 
@@ -220,10 +233,10 @@ for (int i=0;i<lsize;i++)
 
                  b->operator [](index)->getdirection().setX(l[(i)*fieldnum_for_ball+3]);
                  b->operator [](index)->getdirection().setY(l[(i)*fieldnum_for_ball+4]);
-                /* if (index==0)
-                     qDebug()<<b->operator [](index)->getpos().rx()<<b->operator [](index)->getpos().ry()
+                 if (index==0)
+                     qDebug()<<"rec"<<b->operator [](index)->getpos().rx()<<b->operator [](index)->getpos().ry()
                                <<b->operator [](index)->getdirection().rx()<<b->operator [](index)->getdirection().ry();
-*/
+
             }
         }
     }
@@ -256,6 +269,7 @@ public:
                     calculate_collision(b->operator [](i),b->operator [](j));
                     }
             }
+            wall_collision(b->operator [](i));
         }
         foreach(Ball * ab,*b)
         {
@@ -341,13 +355,6 @@ public:
         if (s) s->update();//mindenkinek elkuldom az infokat,es lekerem a helyeket.
         update();
         if (cli) cli->update();
-        foreach(Ball * ab,*remoteballs)
-        {
-           // qDebug()<<ab;
-            if (ab->getpos().rx()<0)
-                ab->getpos().rx()=0;
-            ab->move();
-        }
     }
 
     void paintEvent(QPaintEvent *){//kulonvenni.
@@ -383,7 +390,7 @@ int main(int argc,char **argv)
 
 
 
-void calculate_collision(Ball * a,Ball * b)
+void calculate_collision(Ball * a,Ball * b,qreal b2m)
 {
     //forras: http://www.developer.nokia.com/Community/Wiki/Collision_for_Balls
     qreal dx=a->getpos().rx()-b->getpos().rx();
@@ -399,7 +406,7 @@ void calculate_collision(Ball * a,Ball * b)
     qreal vx_2 = speed2 * cos(direction2 - colision_angle);
     qreal vy_2 = speed2 * sin(direction2 - colision_angle);
 
-    qreal ball1mass=1,ball2mass=1;
+    qreal ball1mass=1,ball2mass=b2m;
     qreal final_vx_1 = ((ball1mass - ball2mass) * vx_1 + (ball2mass + ball2mass) * vx_2)/(ball1mass + ball2mass);
     qreal final_vx_2 = ((ball1mass + ball1mass) * vx_1 + (ball2mass - ball1mass) * vx_2)/(ball1mass + ball2mass);
     qreal final_vy_1 = vy_1;
@@ -409,4 +416,40 @@ void calculate_collision(Ball * a,Ball * b)
      a->getdirection().ry() = sin(colision_angle) * final_vx_1 + sin(colision_angle + M_PI/2) * final_vy_1;
      b->getdirection().rx() = cos(colision_angle) * final_vx_2 + cos(colision_angle + M_PI/2) * final_vy_2;
      b->getdirection().ry() = sin(colision_angle) * final_vx_2 + sin(colision_angle + M_PI/2) * final_vy_2;
+}
+
+void wall_collision(Ball * a)
+{
+    int w=800,h=600;
+    if (a->getpos().rx()<0)
+    {
+        a->getdirection().rx()*=-1.;
+        a->getpos().rx()=0;
+        qDebug()<<"balrol";
+    }
+else
+    if (a->getpos().rx()>w-ballsize*3)
+    {
+        a->getdirection().rx()*=-1.;
+        a->getpos().rx()=w-ballsize*3;
+        qDebug()<<"jobbrol";
+    }
+
+    if (a->getpos().ry()<0)
+    {
+        a->getdirection().ry()*=-1.;
+        a->getpos().ry()=0;
+        qDebug()<<"fentrol";
+    }
+else
+    if (a->getpos().ry()>h-ballsize*3)
+    {
+        a->getdirection().ry()*=-1.;
+        a->getpos().ry()=h-ballsize*3;
+        qDebug()<<"lentrol";
+    }
+
+
+
+
 }
