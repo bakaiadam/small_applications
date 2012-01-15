@@ -432,11 +432,11 @@ int main(int argc,char **argv)
 }
 
 
-
+#include <QVector2D>
 void calculate_collision(Ball * a,Ball * b,qreal b2m)
 {
     //forras: http://www.developer.nokia.com/Community/Wiki/Collision_for_Balls
-    qreal dx=a->getpos().rx()-b->getpos().rx();
+    /*qreal dx=a->getpos().rx()-b->getpos().rx();
     qreal dy=a->getpos().ry()-b->getpos().ry();
     qreal colision_angle=atan2(dx,dy);
     qreal speed1=sqrt(sqr(a->getdirection().rx())+sqr(b->getdirection().rx()) );
@@ -459,6 +459,52 @@ void calculate_collision(Ball * a,Ball * b,qreal b2m)
      a->getdirection().ry() = sin(colision_angle) * final_vx_1 + sin(colision_angle + M_PI/2) * final_vy_1;
      b->getdirection().rx() = cos(colision_angle) * final_vx_2 + cos(colision_angle + M_PI/2) * final_vy_2;
      b->getdirection().ry() = sin(colision_angle) * final_vx_2 + sin(colision_angle + M_PI/2) * final_vy_2;
+     */
+//http://stackoverflow.com/questions/345838/ball-to-ball-collision-detection-and-handling
+
+    // get the mtd
+    QVector2D position(a->getpos());
+    QVector2D ballposition(b->getpos());
+        QVector2D delta = (position-(ballposition));
+        qreal d = delta.length();
+        // minimum translation distance to push balls apart after intersecting
+        qreal radius=ballsize/2;
+        QVector2D mtd = delta*(((radius + radius)-d)/d);
+
+
+        qreal mass=1.0;
+        qreal ballmass=1.0;
+        // resolve intersection --
+        // inverse mass quantities
+        float im1 = 1 / mass;
+        float im2 = 1 / ballmass;
+
+        // push-pull them apart based off their mass
+        position = position+(mtd*(im1 / (im1 + im2)));
+        ballposition = ballposition-(mtd*(im2 / (im1 + im2)));
+
+        // impact speed
+        QVector2D velocity(a->getdirection());
+        QVector2D ballvelocity(b->getdirection());
+        QVector2D v = velocity-ballvelocity ;
+        qreal vn = QVector2D::dotProduct(v,mtd.normalized());
+        // sphere intersecting but moving away from each other already
+        if (vn > 0.0f) return;
+
+        // collision impulse
+        qreal restitution=0.9;
+        float i = (-(1.0f + restitution) * vn) / (im1 + im2);
+        QVector2D impulse = mtd*(i);
+
+        // change in momentum
+
+        velocity = velocity+(impulse*(im1));
+        ballvelocity = ballvelocity-(impulse*(im2));
+        a->getpos()=QPointF(position.toPointF());
+        b->getpos()=QPointF(ballposition.toPointF());
+        a->getdirection()=QPointF(velocity.toPointF());
+        b->getdirection()=QPointF(ballvelocity.toPointF());
+
 }
 
 bool wall_collision(Ball * a)
