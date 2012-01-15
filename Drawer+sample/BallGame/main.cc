@@ -147,8 +147,8 @@ public:
                 socket->read((char*)&dirx,4);
                 socket->read((char*)&diry,4);
 
-                qDebug()<<"read_dirbef"<<b->getdirection().rx()<<b->getdirection().ry()
-                <<dirx<<diry;
+               // qDebug()<<"read_dirbef"<<b->getdirection().rx()<<b->getdirection().ry()
+                //<<dirx<<diry;
 
 //                b->getdirection().setX(dirx);
   //              b->getdirection().setY(diry);
@@ -198,7 +198,7 @@ public:
         //if (last_sent_x== ownball->getdirection().rx() && last_sent_y==ownball->getdirection().ry() )
         {//nem cseszegette a szerver az iranyvektort.
             //QString msg=QString::number((int)ownball->getpos().rx())+" "+QString::number((int)ownball->getpos().ry())+"\n";
-            qDebug()<<"sent"<<ownball->getdirection().rx()<<ownball->getdirection().ry();
+         //   qDebug()<<"sent"<<ownball->getdirection().rx()<<ownball->getdirection().ry();
             //socket->write(ownball->towholearray() );
             ownball->getdirection().rx()=rx;
             ownball->getdirection().ry()=ry;
@@ -248,10 +248,10 @@ for (int i=0;i<lsize;i++)
 
                  b->operator [](index)->getdirection().setX(l[(i)*fieldnum_for_ball+3]);
                  b->operator [](index)->getdirection().setY(l[(i)*fieldnum_for_ball+4]);
-                 if (index==0)
+                /* if (index==0)
                      qDebug()<<"rec"<<b->operator [](index)->getpos().rx()<<b->operator [](index)->getpos().ry()
                                <<b->operator [](index)->getdirection().rx()<<b->operator [](index)->getdirection().ry();
-
+*/
             }
         }
 
