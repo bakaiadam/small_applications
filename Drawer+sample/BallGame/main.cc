@@ -1,6 +1,9 @@
 #include <../drawer.hh>
 
 #define ballsize 10
+#define w 800
+#define h 600
+#define border 100
 
 #include <QTcpSocket>
 #include <QTcpServer>
@@ -27,10 +30,13 @@ bool wall_collision(Ball * a);
 class Ball
 {
 public:
+    qint32 lap;
+    qint32 &getlap(){return lap;}
     bool start;
     const QPointF startpos;
     Ball(QPointF f):pos(f),startpos(300,300)//nagyon csunya.
     {
+        lap=0;
         start=true;
     }
 
@@ -96,6 +102,9 @@ public:
         msg.append (  (char *)&posy,4 );
         msg.append (  (char *)&dirx,4 );
         msg.append (  (char *)&diry,4 );
+
+        msg.append (  (char *)&lap,4 );
+
         return msg;
     }
 
@@ -212,7 +221,7 @@ socket->read((char*)&ownindex,4);
 socket->read((char*)&lsize,4);
 QVector<qint32> l;
 l.push_back(ownindex);
-int fieldnum_for_ball=4;
+int fieldnum_for_ball=5;
 for (int i=0;i<lsize;i++)
 {
     for (int j=0;j<fieldnum_for_ball;j++)
@@ -244,6 +253,7 @@ for (int i=0;i<lsize;i++)
 
                  b->operator [](index)->getdirection().setX(l[(i)*fieldnum_for_ball+3]);
                  b->operator [](index)->getdirection().setY(l[(i)*fieldnum_for_ball+4]);
+                 b->operator [](index)->getlap()=l[(i)*fieldnum_for_ball+5];
                 /* if (index==0)
                      qDebug()<<"rec"<<b->operator [](index)->getpos().rx()<<b->operator [](index)->getpos().ry()
                                <<b->operator [](index)->getdirection().rx()<<b->operator [](index)->getdirection().ry();
@@ -278,6 +288,7 @@ public:
     QTcpServer * tcpServer;
     QVector<Ball*> *b;
     QVector<RemoteBallController*> remote;
+    QVector<int> pos;
     server(QVector<Ball*> *remoteballs):b(remoteballs)
     {
         tcpServer = new QTcpServer();
@@ -311,6 +322,39 @@ public:
            // qDebug()<<ab;
             ab->move();
         }
+
+        int i=0;
+        foreach(Ball * ab,*b)
+        {
+            if (i==pos.size())
+                pos.push_back(1);
+            else
+            {
+
+                qreal rx=ab->getpos().rx(),ry=ab->getpos().ry();
+                if (pos[i]==3 && rx<border && ry<border)
+                {
+                    ab->lap++;
+                    pos[i]=0;
+                }
+                if (pos[i]==0 && rx>w-border && ry<border)
+                {
+                    pos[i]=1;
+                }
+                if (pos[i]==1 && rx>w-border && ry>h-border)
+                {
+                    pos[i]=2;
+                }
+                if (pos[i]==2 && rx<border && ry>h-border)
+                {
+                    pos[i]=3;
+                }
+            }
+            i++;
+        }
+
+
+
         return ret;
     }
     void update()
@@ -339,10 +383,9 @@ public:
         msg.append((char*)&bsize,4);
 
         QByteArray msg2;
-        foreach (Ball * w,*b)
+        foreach (Ball * w2,*b)
         {
-            msg2+=w->towholearray();
-            QByteArray b=w->towholearray();
+            msg2+=w2->towholearray();
         }
 
         //most pedig mindenkinek elkuldom a valtoztatasokat.
@@ -407,8 +450,16 @@ public:
         {
             p.setBrush(QBrush(QColor::fromHsv(i*360/remoteballs->size()+1,255,255) ));
             p.drawChord(b->getpos().rx(),b->getpos().ry(),ballsize,ballsize,0,5760);
+            p.drawText(i*width()/remoteballs->size(),10,QString::number(b->getlap() ) );
         i++;
         }
+
+        p.setBrush(Qt::NoBrush);
+        p.drawRect(0,0,border,border);
+        p.drawRect(w-border,0,border,border);
+        p.drawRect(w-border,h-border,border,border);
+        p.drawRect(0,h-border,border,border);
+
     }
     
     void mouseMoveEvent(QMouseEvent *e)
@@ -517,7 +568,6 @@ bool wall_collision(Ball * a)
     qreal restitution=0.9;
     restitution*=-1;
 
-    int w=800,h=600;
     if (a->getpos().rx()<0)
     {
         a->getdirection().rx()*=restitution;
