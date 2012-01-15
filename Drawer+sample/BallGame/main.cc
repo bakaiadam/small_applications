@@ -250,7 +250,7 @@ for (int i=0;i<lsize;i++)
 */
             }
         }
-        qDebug()<<"rec"<<ownball->getdirection().rx()<<ownball->getdirection().ry();
+     //   qDebug()<<"rec"<<ownball->getdirection().rx()<<ownball->getdirection().ry();
         l_x=b->operator [](0)->getdirection().rx();
         l_y=b->operator [](0)->getdirection().ry();
 
@@ -263,7 +263,7 @@ for (int i=0;i<lsize;i++)
             ownball->getdirection().ry()=ry;
         }
         socket->write(ownball->toarray());
-        qDebug()<<"sent"<<ownball->getdirection().rx()<<ownball->getdirection().ry();
+        //qDebug()<<"sent"<<ownball->getdirection().rx()<<ownball->getdirection().ry();
 
 
         last_sent_x=l_x;
