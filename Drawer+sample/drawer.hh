@@ -83,10 +83,10 @@ MainWindow::MainWindow(int x,int y,QWidget* fWidget)
 
 
 
-class Drawer:protected QApplication,public QWidget
+class Drawer:public QWidget
 {
     public:
-    Drawer():QApplication(0,0),
+    Drawer():
       QWidget()
     {
         setFocusPolicy(Qt::StrongFocus);
@@ -104,17 +104,15 @@ class Drawer:protected QApplication,public QWidget
         QDesktopWidget * desk = qApp->desktop() ;
         int width = desk->width() ;
         int height = desk->height() ;
-        MainWindow mainWin(width,height,this);
-        mainWin.showFullScreen();
-        mainWin.show();
-        exec();
+        resize(width,height);
+        this->show();
     }
 
     void start(int w,int h){
         
-        MainWindow mainWin(w,h,this);
-        mainWin.show();
-        exec();
+        resize(w,h);
+this->show();
+        //mainWin->show();
     }
     
 };

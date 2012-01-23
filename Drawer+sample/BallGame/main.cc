@@ -421,10 +421,13 @@ public:
     LocalBalllController c;
    // QImage *gamecanvas;
    // QLabel l;
+    int a;
+    QMutex m;
 public:
     ~Drawer2(){}
     Drawer2(int argc,char **argv):remoteballs()
     {
+        m.lock();
         s=0;
         cli=0;
         remoteballs=new QVector<Ball*>();
@@ -439,9 +442,12 @@ public:
         }
 
         QWidget::startTimer(8);
+        m.unlock();
+
     }
 
     void timerEvent(QTimerEvent *e){
+        m.lock();
         //if (!a && width()!=0)
           //  a=new QImage(QSize(width(),height()),QImage::Format_RGB888);
 
@@ -450,6 +456,7 @@ public:
         if (s) s->update();//mindenkinek elkuldom az infokat,es lekerem a helyeket.
         update();
         if (cli) cli->update();
+        m.unlock();
     }
 
     void paintEvent(QPaintEvent *){//kulonvenni.
@@ -480,8 +487,10 @@ public:
     
     void mouseMoveEvent(QMouseEvent *e)
     {//pos az elozohoz kepest?
+        m.lock();
         c.process(e);
         update();
+        m.unlock();
     }
     void mousePressEvent(QMouseEvent *){
         update();
@@ -498,9 +507,10 @@ public:
 
 int main(int argc,char **argv)
 {
+    QApplication app(argc,argv);
     Drawer2 d(argc,argv);
     d.start(800,600);
-//    d.start();
+    return app.exec();
 }
 
 
