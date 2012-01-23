@@ -293,6 +293,7 @@ public:
     {
         tcpServer = new QTcpServer();
         if (!tcpServer->listen(QHostAddress::Any,12345)) {
+            qDebug()<<"listen nem sikerult";
             exit(0);
         }
     }
@@ -378,6 +379,8 @@ public:
         {
 
         }
+
+
         QByteArray msg;
         qint32 bsize=b->size();
         msg.append((char*)&bsize,4);
@@ -459,6 +462,13 @@ public:
         p.drawRect(w-border,0,border,border);
         p.drawRect(w-border,h-border,border,border);
         p.drawRect(0,h-border,border,border);
+        p.end();
+        QImage *a=new QImage(QSize(width(),height()),QImage::Format_RGB888);
+        QPainter p2(a);
+        p2.begin(a);
+        render(&p2);
+        p2.end();
+        delete a;
 
     }
     
