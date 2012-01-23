@@ -1,0 +1,7 @@
+sudo bash <<eof
+iptables -P INPUT ACCEPT
+iptables -P OUTPUT ACCEPT
+iptables -P FORWARD ACCEPT
+iptables -X
+iptables -F
+eof
