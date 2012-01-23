@@ -419,7 +419,10 @@ public:
     client * cli;
     QVector<Ball*> *remoteballs;
     LocalBalllController c;
+   // QImage *gamecanvas;
+   // QLabel l;
 public:
+    ~Drawer2(){}
     Drawer2(int argc,char **argv):remoteballs()
     {
         s=0;
@@ -439,6 +442,9 @@ public:
     }
 
     void timerEvent(QTimerEvent *e){
+        //if (!a && width()!=0)
+          //  a=new QImage(QSize(width(),height()),QImage::Format_RGB888);
+
         //b.add_move(QPointF());
 //        b.move();
         if (s) s->update();//mindenkinek elkuldom az infokat,es lekerem a helyeket.
@@ -463,12 +469,12 @@ public:
         p.drawRect(w-border,h-border,border,border);
         p.drawRect(0,h-border,border,border);
         p.end();
-        QImage *a=new QImage(QSize(width(),height()),QImage::Format_RGB888);
-        QPainter p2(a);
+
+    /*    QPainter p2(a);
         p2.begin(a);
         render(&p2);
         p2.end();
-        delete a;
+      */  //delete a;
 
     }
     
