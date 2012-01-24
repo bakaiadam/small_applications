@@ -158,33 +158,18 @@ public:
                 qint32 diry;
                 socket->read((char*)&dirx,4);
                 socket->read((char*)&diry,4);
-                if ( (sendx!=0 || sendy!=0) && !(dirx==sendx && diry==sendy) )  return;//ha a sendx sendy be van allitva akkor egyeznie kell a dirx diry-szal
-               // qDebug()<<"read_dirbef"<<b->getdirection().rx()<<b->getdirection().ry()
-                //<<dirx<<diry;
-
-//                b->getdirection().setX(dirx);
-  //              b->getdirection().setY(diry);
-  //              if ((b->getdirection().rx()*(-1)!=(dirx) ) )
-             //   if (qAbs(b->getdirection().rx()*-1-(dirx) )>15 )
-                //if (dirx*-1!=b->getdirection().rx())
-
-                b->getdirection().rx()=(dirx);
-//                if ((b->getdirection().ry()*(-1)!=(diry) ) )
-    //            if (qAbs(b->getdirection().ry()*-(diry) )<1000 )
-//                if (diry*-1!=b->getdirection().ry())
-               // if (qAbs(b->getdirection().ry()*-1-(diry) )>15 )
-                b->getdirection().ry()=(diry);
+                b->getdirection().rx()+=(dirx);
+                b->getdirection().ry()+=(diry);
                 sendx=0;sendy=0;
       //          qDebug()<<"read_dir"<<b->getdirection().rx()<<b->getdirection().ry();
 
         }
     }
 
-    void send(QByteArray a,qreal sendx=0,qreal sendy=0)
+    void send(QImage * a)
     {
-        this->sendx=sendx;
-        this->sendy=sendy;
-        socket->write(a);
+        QDataStream st(socket);
+        st<<*a;
     }
 };
 
@@ -194,8 +179,10 @@ public:
     QTcpSocket * socket;
     Ball * ownball;
     qreal last_sent_x,last_sent_y;
-    client(QString host,QVector<Ball*> *b):b(b)
+    QImage * canvas;
+    client(QString host,QVector<Ball*> *b,QImage * canvas):b(b),canvas(canvas)
     {
+        ownball=b->operator [](0);
         socket=new QTcpSocket();
         socket->connectToHost(host,12345);
         last_sent_x=0;
@@ -203,93 +190,26 @@ public:
     }
     void update()
     {
-        ownball=b->first();
-        qreal rx=ownball->getdirection().rx();
-        qreal ry=ownball->getdirection().ry();
-qreal l_x,l_y;
-
-
-
-        while (socket->bytesAvailable()>=8)
+        while (socket->bytesAvailable()>0)
         {
-            Ball * first=b->first();
-      //      for (int i=1;i<b->size();i++)
-        //    {delete b->back();b->pop_back();}
-qint32 ownindex;
-qint32 lsize;
-socket->read((char*)&ownindex,4);
-socket->read((char*)&lsize,4);
-QVector<qint32> l;
-l.push_back(ownindex);
-int fieldnum_for_ball=5;
-for (int i=0;i<lsize;i++)
-{
-    for (int j=0;j<fieldnum_for_ball;j++)
-    {
-        qint32 tmp;
-        socket->read((char*)&tmp,4);
-        l.push_back(tmp);
-    }
-}
-
-            int elemszam=(l.size()-1)/fieldnum_for_ball;
-            while (elemszam>b->size())
-                b->push_back(new Ball(QPointF(300,300)));
-            int pp=0;
-            int own_index=l[0];
-
-            for (int i=0;i<elemszam;i++)
-                {
-                int index=0;
-                if (i==own_index)
-                {
-                    pp=1;
-                    index=0;
-                }
-                else
-                    index=i+1-pp;
-                 b->operator [](index)->getpos().setX(l[(i)*fieldnum_for_ball+1]);
-                 b->operator [](index)->getpos().setY(l[(i)*fieldnum_for_ball+2]);
-
-                 b->operator [](index)->getdirection().setX(l[(i)*fieldnum_for_ball+3]);
-                 b->operator [](index)->getdirection().setY(l[(i)*fieldnum_for_ball+4]);
-                 b->operator [](index)->getlap()=l[(i)*fieldnum_for_ball+5];
-                /* if (index==0)
-                     qDebug()<<"rec"<<b->operator [](index)->getpos().rx()<<b->operator [](index)->getpos().ry()
-                               <<b->operator [](index)->getdirection().rx()<<b->operator [](index)->getdirection().ry();
-*/
-            }
-        }
-     //   qDebug()<<"rec"<<ownball->getdirection().rx()<<ownball->getdirection().ry();
-        l_x=b->operator [](0)->getdirection().rx();
-        l_y=b->operator [](0)->getdirection().ry();
-
-        //qDebug()<<last_sent_x<<ownball->getdirection().rx();
-        if (last_sent_x== ownball->getdirection().rx() && last_sent_y==ownball->getdirection().ry() )
-        {//nem cseszegette a szerver az iranyvektort.
-            //QString msg=QString::number((int)ownball->getpos().rx())+" "+QString::number((int)ownball->getpos().ry())+"\n";
-            //socket->write(ownball->towholearray() );
-            ownball->getdirection().rx()=rx;
-            ownball->getdirection().ry()=ry;
+            qDebug()<<"aval:"<<socket->bytesAvailable();
+            QDataStream st(socket);
+            st>>*canvas;
         }
         socket->write(ownball->toarray());
-        //qDebug()<<"sent"<<ownball->getdirection().rx()<<ownball->getdirection().ry();
-
-
-        last_sent_x=l_x;
-        last_sent_y=l_y;
-
-
+        ownball->direction.rx()=0;
+        ownball->direction.ry()=0;
     }
 };
 
 class server{
 public:
+    QImage *canvas;
     QTcpServer * tcpServer;
     QVector<Ball*> *b;
     QVector<RemoteBallController*> remote;
     QVector<int> pos;
-    server(QVector<Ball*> *remoteballs):b(remoteballs)
+    server(QVector<Ball*> *remoteballs,QImage * c):b(remoteballs),canvas(c)
     {
         tcpServer = new QTcpServer();
         if (!tcpServer->listen(QHostAddress::Any,12345)) {
@@ -358,6 +278,28 @@ public:
 
         return ret;
     }
+
+    void update_canvas()
+    {
+        QPainter p(canvas);
+        p.fillRect(QRect(0,0,w,h),Qt::white);
+                int i=0;
+                foreach (RemoteBallController *r,remote)
+                {
+                    Ball *b=r->b;
+                    p.setBrush(QBrush(QColor::fromHsv(i*360/remote.size()+1,255,255) ));
+                    p.drawChord(b->getpos().rx(),b->getpos().ry(),ballsize,ballsize,0,5760);
+                    p.drawText(i*w/remote.size(),10,QString::number(b->getlap() ) );
+                i++;
+                }
+                p.setBrush(Qt::NoBrush);
+                p.drawRect(0,0,border,border);
+                p.drawRect(w-border,0,border,border);
+                p.drawRect(w-border,h-border,border,border);
+                p.drawRect(0,h-border,border,border);
+                p.end();
+    }
+
     void update()
     {
         if (tcpServer->hasPendingConnections() )
@@ -379,32 +321,13 @@ public:
         {
 
         }
+        update_canvas();
 
-
-        QByteArray msg;
-        qint32 bsize=b->size();
-        msg.append((char*)&bsize,4);
-
-        QByteArray msg2;
-        foreach (Ball * w2,*b)
-        {
-            msg2+=w2->towholearray();
-        }
-
-        //most pedig mindenkinek elkuldom a valtoztatasokat.
+       //most pedig mindenkinek elkuldom a valtoztatasokat.
         qint32 i=0;
         foreach (RemoteBallController *r,remote)
         {
-            QByteArray msg3;
-            msg3.append((char*)&i,4);
-
-//            r->send(msg3+msg+msg2);
-            if (new_directions.contains(i))
-                    r->send(msg3+msg+msg2,r->b->getdirection().rx(),r->b->getdirection().ry());
-                else
-                r->send(msg3+msg+msg2);
-
-            i++;
+                r->send(canvas);
         }
     }
 
@@ -425,55 +348,51 @@ public:
     ~Drawer2(){}
     Drawer2(int width, int height, int argc,char **argv):remoteballs()
     {
+        gamecanvas=new QImage(width,height,QImage::Format_RGB888);
         m.lock();
         s=0;
         cli=0;
         remoteballs=new QVector<Ball*>();
         if (argc==1)
-            s=new server(remoteballs);
+            s=new server(remoteballs,gamecanvas);
         else
         {
-            cli=new client(QString(argv[1]),remoteballs);
             Ball *a=new Ball(QPointF(300,300));
             remoteballs->push_back(a);
             c.setBall(a);
+            cli=new client(QString(argv[1]),remoteballs,gamecanvas);
         }
-
         QWidget::startTimer(8);
         m.unlock();
         start(width,height);
     }
 
     void timerEvent(QTimerEvent *e){
+        qDebug()<<__LINE__;
         m.lock();
+        qDebug()<<__LINE__;
         //if (!a && width()!=0)
           //  a=new QImage(QSize(width(),height()),QImage::Format_RGB888);
 
         //b.add_move(QPointF());
 //        b.move();
+        qDebug()<<__LINE__;
         if (s) s->update();//mindenkinek elkuldom az infokat,es lekerem a helyeket.
+        qDebug()<<__LINE__;
         update();
+        qDebug()<<__LINE__;
         if (cli) cli->update();
+        qDebug()<<__LINE__;
         m.unlock();
+        qDebug()<<__LINE__;
     }
 
     void paintEvent(QPaintEvent *){//kulonvenni.
-        QPainter p(this);
-        int i=0;
-        foreach(Ball * b,*remoteballs)
-        {
-            p.setBrush(QBrush(QColor::fromHsv(i*360/remoteballs->size()+1,255,255) ));
-            p.drawChord(b->getpos().rx(),b->getpos().ry(),ballsize,ballsize,0,5760);
-            p.drawText(i*width()/remoteballs->size(),10,QString::number(b->getlap() ) );
-        i++;
-        }
+        QPainter p2(this);
+        p2.drawImage(QPoint(),*gamecanvas);
+p2.end();
+qDebug()<<"rajz";
 
-        p.setBrush(Qt::NoBrush);
-        p.drawRect(0,0,border,border);
-        p.drawRect(w-border,0,border,border);
-        p.drawRect(w-border,h-border,border,border);
-        p.drawRect(0,h-border,border,border);
-        p.end();
 
     /*    QPainter p2(a);
         p2.begin(a);
