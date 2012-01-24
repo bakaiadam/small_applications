@@ -423,7 +423,7 @@ public:
     QMutex m;
 public:
     ~Drawer2(){}
-    Drawer2(int argc,char **argv):remoteballs()
+    Drawer2(int width, int height, int argc,char **argv):remoteballs()
     {
         m.lock();
         s=0;
@@ -441,7 +441,7 @@ public:
 
         QWidget::startTimer(8);
         m.unlock();
-
+        start(width,height);
     }
 
     void timerEvent(QTimerEvent *e){
@@ -507,8 +507,8 @@ public:
 int main(int argc,char **argv)
 {
     QApplication app(argc,argv);
-    Drawer2 d(argc,argv);
-    d.start(800,600);
+    Drawer2 d(800,600,argc,argv);
+//    d.start(800,600);
     return app.exec();
 }
 
