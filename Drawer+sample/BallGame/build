@@ -1,0 +1,2 @@
+g++ -g -c -m32 -pipe -O2 -Wall -W -D_REENTRANT -DQT_NO_DEBUG -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB -I/home/adam/QtSDK/Desktop/Qt/474/gcc/mkspecs/linux-g++-32 -I. -I/home/adam/QtSDK/Desktop/Qt/474/gcc/include/QtCore -I/home/adam/QtSDK/Desktop/Qt/474/gcc/include/QtNetwork -I/home/adam/QtSDK/Desktop/Qt/474/gcc/include/QtGui -I/home/adam/QtSDK/Desktop/Qt/474/gcc/include -I. -o main.o main.cc
+g++ -m32 -Wl,-O1 -Wl,-rpath,/home/adam/QtSDK/Desktop/Qt/474/gcc/lib -o BallGame main.o    -L/home/adam/QtSDK/Desktop/Qt/474/gcc/lib -lQtGui -lQtNetwork -lQtCore -lpthread

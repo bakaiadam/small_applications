@@ -419,9 +419,7 @@ public:
     client * cli;
     QVector<Ball*> *remoteballs;
     LocalBalllController c;
-   // QImage *gamecanvas;
-   // QLabel l;
-    int a;
+    QImage *gamecanvas;
     QMutex m;
 public:
     ~Drawer2(){}
@@ -488,6 +486,7 @@ public:
     void mouseMoveEvent(QMouseEvent *e)
     {//pos az elozohoz kepest?
         m.lock();
+        if (cli)
         c.process(e);
         update();
         m.unlock();
