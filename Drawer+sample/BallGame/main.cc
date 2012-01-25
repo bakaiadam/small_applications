@@ -192,7 +192,7 @@ public:
     {
         while (socket->bytesAvailable()>0)
         {
-            qDebug()<<"aval:"<<socket->bytesAvailable();
+         //   qDebug()<<"aval:"<<socket->bytesAvailable();
             QDataStream st(socket);
             st>>*canvas;
         }
@@ -368,32 +368,29 @@ public:
     }
 
     void timerEvent(QTimerEvent *e){
-        qDebug()<<__LINE__;
+      //  qDebug()<<__LINE__;
         m.lock();
-        qDebug()<<__LINE__;
+      //  qDebug()<<__LINE__;
         //if (!a && width()!=0)
           //  a=new QImage(QSize(width(),height()),QImage::Format_RGB888);
 
         //b.add_move(QPointF());
 //        b.move();
-        qDebug()<<__LINE__;
+      //  qDebug()<<__LINE__;
         if (s) s->update();//mindenkinek elkuldom az infokat,es lekerem a helyeket.
-        qDebug()<<__LINE__;
+      //  qDebug()<<__LINE__;
         update();
-        qDebug()<<__LINE__;
+      //  qDebug()<<__LINE__;
         if (cli) cli->update();
-        qDebug()<<__LINE__;
+      //  qDebug()<<__LINE__;
         m.unlock();
-        qDebug()<<__LINE__;
+      //  qDebug()<<__LINE__;
     }
 
     void paintEvent(QPaintEvent *){//kulonvenni.
         QPainter p2(this);
         p2.drawImage(QPoint(),*gamecanvas);
 p2.end();
-qDebug()<<"rajz";
-
-
     /*    QPainter p2(a);
         p2.begin(a);
         render(&p2);
