@@ -9,6 +9,29 @@
 #include <QTcpServer>
 //this game will be like labirinth  lite for mobile phones.
 
+QByteArray imagetobytearray(const QImage * img)
+{
+    QBuffer b;
+    b.open(QIODevice::ReadWrite);
+    img->save(&b,"jpg");
+    QByteArray bb=b.buffer();
+    //quint32 size=bb.size();QByteArray bb2((char*)&size,4);
+    //return bb2+bb;
+    return bb;
+}
+
+void readimage(QTcpSocket * socket, QImage *img)
+{
+//    quint32 size;
+//    socket->read((char *)&size,4);
+//    QByteArray ba=socket->read(size);
+//   QBuffer buf(&ba,0);
+//    buf.open(QIODevice::ReadOnly);
+    img->load(socket,"jpg");
+}
+
+
+
 qreal distance(QPointF &a,QPointF &b)
 {
     qreal asq=qAbs(a.rx()-b.rx());asq*=asq;
@@ -171,6 +194,11 @@ public:
         QDataStream st(socket);
         st<<*a;
     }
+    void send(const QByteArray & ba)
+    {
+        socket->write(ba);
+    }
+
 };
 
 class client{
@@ -193,8 +221,9 @@ public:
         while (socket->bytesAvailable()>0)
         {
          //   qDebug()<<"aval:"<<socket->bytesAvailable();
-            QDataStream st(socket);
-            st>>*canvas;
+//            QDataStream st(socket);
+  //          st>>*canvas;
+        readimage(socket,canvas);
         }
         socket->write(ownball->toarray());
         ownball->direction.rx()=0;
@@ -322,12 +351,13 @@ public:
 
         }
         update_canvas();
+        QByteArray ba=imagetobytearray(canvas);
 
        //most pedig mindenkinek elkuldom a valtoztatasokat.
         qint32 i=0;
         foreach (RemoteBallController *r,remote)
         {
-                r->send(canvas);
+                r->send(ba);
         }
     }
 
