@@ -33,6 +33,7 @@ void readimage(QTcpSocket * socket, QImage *img)
 //    QByteArray ba=socket->read(size);
 //   QBuffer buf(&ba,0);
 //    buf.open(QIODevice::ReadOnly);
+    if (socket->bytesAvailable()!=0)
     img->load(socket,"jpg");
 }
 
@@ -287,7 +288,9 @@ public:
     }
     void send(const QByteArray & ba)
     {
+        if (socket->bytesToWrite()==0)
         socket->write(ba);
+        socket->flush();
     }
 
 };
@@ -402,9 +405,9 @@ public:
             c.setBall(a);
             cli=new client(QString(argv[1]),remoteballs,gamecanvas);
         }
-        QWidget::startTimer(8);
         m.unlock();
         start(width,height);
+                QWidget::startTimer(8);
     }
 
     void timerEvent(QTimerEvent *e){
@@ -427,10 +430,14 @@ public:
       //  qDebug()<<__LINE__;
     }
 
-    void paintEvent(QPaintEvent *){//kulonvenni.
+    void paintEvent(QPaintEvent *e){//kulonvenni.
+      //  qDebug()<<"paintevent begin";
+
         QPainter p2(this);
-        p2.drawImage(QPoint(),*gamecanvas);
-p2.end();
+            if (cli)
+                p2.drawImage(QPoint(),*gamecanvas);
+        p2.end();
+      //  qDebug()<<"paintevent end";
     /*    QPainter p2(a);
         p2.begin(a);
         render(&p2);
