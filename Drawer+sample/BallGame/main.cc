@@ -144,11 +144,34 @@ ennek az osnek a celja az h ilyenekbe legyenek benne mindig a jatekszabalyok.ege
 class GameMap{
    public:
         virtual void process(QVector<Ball*> &balls, QPainter &p)=0;
+    virtual Ball * new_user()=0;
 };
 
 class AlapMap:public GameMap
 {//van benne pattogas.
+    QVector<int> pontok;
+    QPointF elso,masodik;
+    QRegion tilos_helyek;
 public:
+    AlapMap()
+    {
+        elso=QPointF(20,20);
+        masodik=QPointF(w-20,h-20);
+        tilos_helyek+=(QRect(0,200,700,20)  );
+        tilos_helyek+=(QRect(100,300,700,20));
+//        tilos_helyek=tilos_helyek.intersect(QRect(0,200,700,20) );
+
+    }
+
+    Ball * new_user()
+    {
+        if (pontok.size()==0)
+            return new Ball(elso );
+        if (pontok.size()==1)
+            return new Ball(masodik );
+        return NULL;
+    }
+
     void gameplay_logic(QVector<Ball*> &b)
     {
         for (int i=0;i<b.size();i++)
@@ -167,6 +190,16 @@ public:
             wall_collision(b.operator [](i));
 
         }
+#define a(i,start,stop) if (b.size()>i) if (distance(b[i]->pos,stop)<30 || tilos_helyek.contains((QPoint(b[i]->pos.x(),b[i]->pos.y()) ) ) ) \
+        {\
+            if (distance(b[i]->pos,stop)<30 ) pontok[i]++;\
+            b[i]->pos=start;\
+            b[i]->direction=QPointF();\
+        }
+        a(0,elso,masodik);
+        a(1,masodik,elso);
+        #undef a
+
 /*
         int i=0;
         foreach(Ball * ab,*b)
@@ -204,23 +237,31 @@ public:
     {
         p.fillRect(QRect(0,0,w,h),Qt::white);
                 int i=0;
+                foreach (QRect r,tilos_helyek.rects() )
+                {
+                    p.fillRect(r,Qt::green );
+                }
+
                 foreach (Ball *b,balls)
                 {
                     p.setBrush(QBrush(QColor::fromHsv(i*360/balls.size()+1,255,255) ));
                     p.drawChord(b->getpos().rx(),b->getpos().ry(),ballsize,ballsize,0,5760);
-                    p.drawText(i*w/balls.size(),10,QString::number(b->getlap() ) );
+                    p.drawText(i*w/balls.size(),10,QString::number(pontok[i] ) );
                 i++;
                 }
                 p.setBrush(Qt::NoBrush);
-                p.drawRect(0,0,border,border);
-                p.drawRect(w-border,0,border,border);
-                p.drawRect(w-border,h-border,border,border);
-                p.drawRect(0,h-border,border,border);
+//                p.drawRect(0,0,border,border);
+  //              p.drawRect(w-border,0,border,border);
+    //            p.drawRect(w-border,h-border,border,border);
+      //          p.drawRect(0,h-border,border,border);
+
                 p.end();
     }
 
      virtual void process(QVector<Ball*> &balls, QPainter &p)
      {
+        while (pontok.size()<balls.size())
+            pontok.push_back(0);
            gameplay_logic(balls);
            update_canvas(balls,p);
      }
@@ -347,11 +388,16 @@ public:
     {
         if (tcpServer->hasPendingConnections() )
         {
-            Ball * newb=new Ball(QPointF(300,300));
+
+            Ball * newb=jatekmap.new_user();
+            if (newb)
+            {
             RemoteBallController * r=new RemoteBallController(tcpServer->nextPendingConnection());
             r->setBall(newb);
             b->push_back(newb);
             remote.push_back(r);
+            }
+
         }
 
         foreach (RemoteBallController *r,remote)
