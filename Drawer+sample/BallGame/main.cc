@@ -21,19 +21,20 @@ QByteArray imagetobytearray(const QImage * img)
     b.open(QIODevice::ReadWrite);
     img->save(&b,"jpg");
     QByteArray bb=b.buffer();
-    //quint32 size=bb.size();QByteArray bb2((char*)&size,4);
-    //return bb2+bb;
-    return bb;
+    quint32 size=bb.size();QByteArray bb2((char*)&size,4);
+    return bb2+bb;
+    //return bb;
 }
 
 void readimage(QTcpSocket * socket, QImage *img)
 {
-//    quint32 size;
-//    socket->read((char *)&size,4);
+    quint32 size;
+    socket->read((char *)&size,4);
 //    QByteArray ba=socket->read(size);
 //   QBuffer buf(&ba,0);
 //    buf.open(QIODevice::ReadOnly);
-    if (socket->bytesAvailable()!=0)
+    while (socket->bytesAvailable()<0)
+        socket->waitForReadyRead();
     img->load(socket,"jpg");
 }
 
@@ -434,7 +435,7 @@ public:
       //  qDebug()<<"paintevent begin";
 
         QPainter p2(this);
-//            if (cli)
+            if (cli)
                 p2.drawImage(QPoint(),*gamecanvas);
         p2.end();
       //  qDebug()<<"paintevent end";
