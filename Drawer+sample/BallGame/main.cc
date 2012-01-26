@@ -9,6 +9,12 @@
 #include <QTcpServer>
 //this game will be like labirinth  lite for mobile phones.
 
+class Ball;
+
+void calculate_collision(Ball * a,Ball * b, qreal b2m=1);
+
+bool wall_collision(Ball * a);
+
 QByteArray imagetobytearray(const QImage * img)
 {
     QBuffer b;
@@ -43,12 +49,6 @@ qreal sqr(qreal a)
 {
     return a*a;
 }
-
-class Ball;
-
-void calculate_collision(Ball * a,Ball * b, qreal b2m=1);
-
-bool wall_collision(Ball * a);
 
 class Ball
 {
@@ -135,6 +135,97 @@ public:
     QPointF direction;
     QPointF pos;
 };
+
+
+/**
+ennek az osnek a celja az h ilyenekbe legyenek benne mindig a jatekszabalyok.egeszen a pattogastol kezdve a pontszamolasig minden.*/
+class GameMap{
+   public:
+        virtual void process(QVector<Ball*> &balls, QPainter &p)=0;
+};
+
+class AlapMap:public GameMap
+{//van benne pattogas.
+public:
+    void gameplay_logic(QVector<Ball*> &b)
+    {
+        for (int i=0;i<b.size();i++)
+        {
+            QPointF icenter(b.operator [](i)->getpos().rx()+ballsize/2,b.operator [](i)->getpos().ry()+ballsize/2  );
+            for (int j=i+1;j<b.size();j++)
+            {
+                QPointF jcenter(
+                            b.operator [](j)->getpos().rx()+ballsize/2,
+                            b.operator [](j)->getpos().ry()+ballsize/2  );
+                if (distance(icenter,jcenter)<ballsize)
+                    {
+                    calculate_collision(b.operator [](i),b.operator [](j));
+                    }
+            }
+            wall_collision(b.operator [](i));
+
+        }
+/*
+        int i=0;
+        foreach(Ball * ab,*b)
+        {
+            if (i==pos.size())
+                pos.push_back(1);
+            else
+            {
+
+                qreal rx=ab->getpos().rx(),ry=ab->getpos().ry();
+                if (pos[i]==3 && rx<border && ry<border)
+                {
+                    ab->lap++;
+                    pos[i]=0;
+                }
+                if (pos[i]==0 && rx>w-border && ry<border)
+                {
+                    pos[i]=1;
+                }
+                if (pos[i]==1 && rx>w-border && ry>h-border)
+                {
+                    pos[i]=2;
+                }
+                if (pos[i]==2 && rx<border && ry>h-border)
+                {
+                    pos[i]=3;
+                }
+            }
+            i++;
+        }
+*/
+    }
+
+    void update_canvas(QVector<Ball*> &balls,QPainter &p)
+    {
+        p.fillRect(QRect(0,0,w,h),Qt::white);
+                int i=0;
+                foreach (Ball *b,balls)
+                {
+                    p.setBrush(QBrush(QColor::fromHsv(i*360/balls.size()+1,255,255) ));
+                    p.drawChord(b->getpos().rx(),b->getpos().ry(),ballsize,ballsize,0,5760);
+                    p.drawText(i*w/balls.size(),10,QString::number(b->getlap() ) );
+                i++;
+                }
+                p.setBrush(Qt::NoBrush);
+                p.drawRect(0,0,border,border);
+                p.drawRect(w-border,0,border,border);
+                p.drawRect(w-border,h-border,border,border);
+                p.drawRect(0,h-border,border,border);
+                p.end();
+    }
+
+     virtual void process(QVector<Ball*> &balls, QPainter &p)
+     {
+           gameplay_logic(balls);
+           update_canvas(balls,p);
+     }
+
+};
+
+
 
 /**
   Ket fele controller lesz.az egyik a lokalis valtozatokast teszi ra a ballra,a masik meg a netrol jovokkel update-eli.
@@ -233,6 +324,7 @@ public:
 
 class server{
 public:
+    AlapMap jatekmap;
     QImage *canvas;
     QTcpServer * tcpServer;
     QVector<Ball*> *b;
@@ -245,88 +337,6 @@ public:
             qDebug()<<"listen nem sikerult";
             exit(0);
         }
-    }
-    QVector<int> gameplay_logic()
-    {
-        QVector<int> ret;
-        for (int i=0;i<b->size();i++)
-        {
-            QPointF icenter(b->operator [](i)->getpos().rx()+ballsize/2,b->operator [](i)->getpos().ry()+ballsize/2  );
-            for (int j=i+1;j<b->size();j++)
-            {
-                QPointF jcenter(
-                            b->operator [](j)->getpos().rx()+ballsize/2,
-                            b->operator [](j)->getpos().ry()+ballsize/2  );
-                if (distance(icenter,jcenter)<ballsize)
-                    {
-                    calculate_collision(b->operator [](i),b->operator [](j));
-                    ret.push_back(i);
-                    ret.push_back(j);
-                    }
-            }
-            if (wall_collision(b->operator [](i))) ret.push_back(i);
-
-        }
-        foreach(Ball * ab,*b)
-        {
-           // qDebug()<<ab;
-            ab->move();
-        }
-
-        int i=0;
-        foreach(Ball * ab,*b)
-        {
-            if (i==pos.size())
-                pos.push_back(1);
-            else
-            {
-
-                qreal rx=ab->getpos().rx(),ry=ab->getpos().ry();
-                if (pos[i]==3 && rx<border && ry<border)
-                {
-                    ab->lap++;
-                    pos[i]=0;
-                }
-                if (pos[i]==0 && rx>w-border && ry<border)
-                {
-                    pos[i]=1;
-                }
-                if (pos[i]==1 && rx>w-border && ry>h-border)
-                {
-                    pos[i]=2;
-                }
-                if (pos[i]==2 && rx<border && ry>h-border)
-                {
-                    pos[i]=3;
-                }
-            }
-            i++;
-        }
-
-
-
-        return ret;
-    }
-
-    void update_canvas()
-    {
-        QPainter p(canvas);
-        p.fillRect(QRect(0,0,w,h),Qt::white);
-                int i=0;
-                foreach (RemoteBallController *r,remote)
-                {
-                    Ball *b=r->b;
-                    p.setBrush(QBrush(QColor::fromHsv(i*360/remote.size()+1,255,255) ));
-                    p.drawChord(b->getpos().rx(),b->getpos().ry(),ballsize,ballsize,0,5760);
-                    p.drawText(i*w/remote.size(),10,QString::number(b->getlap() ) );
-                i++;
-                }
-                p.setBrush(Qt::NoBrush);
-                p.drawRect(0,0,border,border);
-                p.drawRect(w-border,0,border,border);
-                p.drawRect(w-border,h-border,border,border);
-                p.drawRect(0,h-border,border,border);
-                p.end();
     }
 
     void update()
@@ -345,18 +355,18 @@ public:
             r->update();
         }//mindenkitol bekertem a valtoztatasokat
 
-        QVector<int> new_directions=gameplay_logic();//do phisycs and stuff
-        for (int i=0;i<new_directions.size();i++)
-        {
-
-        }
-        update_canvas();
+        //itt lehet elmentni az elozo allapotot,h hogy nezett ki a canvas ha kesobb kell diffeleshez.
+    //    gameplay_logic();
+        QPainter p(canvas);
+    //    update_canvas(p);
+        jatekmap.process(*b,p);
         QByteArray ba=imagetobytearray(canvas);
 
        //most pedig mindenkinek elkuldom a valtoztatasokat.
         qint32 i=0;
         foreach (RemoteBallController *r,remote)
         {
+            r->b->move();
                 r->send(ba);
         }
     }
