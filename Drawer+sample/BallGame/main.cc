@@ -513,7 +513,7 @@ void calculate_collision(Ball * a,Ball * b,qreal b2m)
         QVector2D delta = (position-(ballposition));
         qreal d = delta.length();
         // minimum translation distance to push balls apart after intersecting
-        qreal radius=ballsize/2;
+        qreal radius=ballsize/2.;
         QVector2D mtd = delta*(((radius + radius)-d)/d);
 
 
@@ -534,7 +534,7 @@ void calculate_collision(Ball * a,Ball * b,qreal b2m)
         QVector2D v = velocity-ballvelocity ;
         qreal vn = QVector2D::dotProduct(v,mtd.normalized());
         // sphere intersecting but moving away from each other already
-        if (vn > 0.0f) return;
+//        if (vn > 0.0f) return;
 
         // collision impulse
         qreal restitution=0.9;
