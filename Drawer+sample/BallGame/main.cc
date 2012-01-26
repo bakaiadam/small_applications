@@ -82,7 +82,7 @@ public:
     }
     void move()
     {
-        double szorzo=0.001;
+        double szorzo=0.01;
         pos+=direction*szorzo;
         //qDebug()<<direction;
     }
@@ -407,7 +407,7 @@ public:
         }
         m.unlock();
         start(width,height);
-                QWidget::startTimer(8);
+                QWidget::startTimer(30);
     }
 
     void timerEvent(QTimerEvent *e){
@@ -434,7 +434,7 @@ public:
       //  qDebug()<<"paintevent begin";
 
         QPainter p2(this);
-            if (cli)
+//            if (cli)
                 p2.drawImage(QPoint(),*gamecanvas);
         p2.end();
       //  qDebug()<<"paintevent end";
