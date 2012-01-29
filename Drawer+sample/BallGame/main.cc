@@ -308,6 +308,7 @@ public:
 class LocalKeyBallController:public BallController
 {
     QVector<int> a;
+    QVector<bool> pushed;
 public:
     LocalKeyBallController()
     {
@@ -318,6 +319,7 @@ public:
         a.push_back(b);
         a.push_back(c);
         a.push_back(d);
+        pushed=QVector<bool>(4,false);
     }
     bool valid_input(QKeyEvent * e)
     {
@@ -328,18 +330,49 @@ public:
     void process(QKeyEvent * e)
     {
         QPoint move;
-        if (e->key()==a[0])
-            move=QPoint(-1,0);
-        if (e->key()==a[1])
-            move=QPoint(0,-1);
-        if (e->key()==a[2])
-            move=QPoint(1,0);
-        if (e->key()==a[3])
-            move=QPoint(0,1);
-        move*=1;
+        if (e->key()==a[0] || pushed[0])
+        {
+            move+=QPoint(-1,0);
+            pushed[0]=true;
+        }
+        if (e->key()==a[1] || pushed[1])
+        {
+            move+=QPoint(0,-1);
+            pushed[1]=true;
+        }
+        if (e->key()==a[2] || pushed[2])
+        {
+            move+=QPoint(1,0);
+            pushed[2]=true;
+        }
+        if (e->key()==a[3] || pushed[3])
+        {
+            move+=QPoint(0,1);
+            pushed[3]=true;
+        }
+        move*=11;
 //        qDebug()<<move;
         b->add_move(move);
   //      QCursor::setPos(QPoint(300,300));
+    }
+    void r(QKeyEvent *e)
+    {
+        if (e->key()==a[0])
+        {
+            pushed[0]=false;
+        }
+        if (e->key()==a[1])
+        {
+            pushed[1]=false;
+        }
+        if (e->key()==a[2])
+        {
+            pushed[2]=false;
+        }
+        if (e->key()==a[3])
+        {
+            pushed[3]=false;
+        }
     }
 };
 
@@ -469,6 +502,16 @@ public:
             k2->process(e);
         //cli->keyPressEvent(e);
     }
+    virtual void keyReleaseEvent(QKeyEvent *e)
+    {
+        if (k1_pos>=0)
+            k1->r(e);
+        if (k2_pos>=0)
+            k2->r(e);
+        //cli->keyPressEvent(e);
+    }
+
+
 };
 
 class server{
@@ -650,6 +693,11 @@ public:
           cli->keyPressEvent(e);
         if (e->text()=="q")
         exit(0);
+    }
+    virtual void keyReleaseEvent(QKeyEvent *e)
+    {
+        if (cli)
+          cli->keyReleaseEvent(e);
     }
 
     
