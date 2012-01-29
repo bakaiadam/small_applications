@@ -9,6 +9,16 @@
 #include <QTcpServer>
 //this game will be like labirinth  lite for mobile phones.
 
+
+class client_settings{
+public:
+    QString host;
+    bool keyboard1;
+    bool keyboard2;
+    bool mouse;
+    bool need_image;
+};
+
 class Ball;
 
 void calculate_collision(Ball * a,Ball * b, qreal b2m=1);
@@ -59,7 +69,7 @@ public:
     qint32 &getlap(){return lap;}
     bool start;
     const QPointF startpos;
-    Ball(QPointF f):pos(f),startpos(300,300)//nagyon csunya.
+    Ball(QPointF f):pos(f),startpos(0,0)//nagyon csunya.
     {
         lap=0;
         start=true;
@@ -281,26 +291,70 @@ public:
 };
 class LocalBalllController:public BallController{
 public:
+    QPoint def_pos;
     LocalBalllController()
     {
-                QCursor::setPos(QPoint(300,300));
+        def_pos=QPoint(300,300);
+        QCursor::setPos(def_pos);
     }
 
     void process(QMouseEvent * e)
     {
-        b->add_move(QCursor::pos());
-        QCursor::setPos(QPoint(300,300));
+        b->add_move(QCursor::pos()-def_pos);
+        QCursor::setPos(def_pos);
     }
 };
 
+class LocalKeyBallController:public BallController
+{
+    QVector<int> a;
+public:
+    LocalKeyBallController()
+    {
+    }
+    LocalKeyBallController(int ka, int b, int c , int d)
+    {
+        a.push_back(ka);
+        a.push_back(b);
+        a.push_back(c);
+        a.push_back(d);
+    }
+    bool valid_input(QKeyEvent * e)
+    {
+        return (a.contains(e->key()));
+    }
+
+
+    void process(QKeyEvent * e)
+    {
+        QPoint move;
+        if (e->key()==a[0])
+            move=QPoint(-1,0);
+        if (e->key()==a[1])
+            move=QPoint(0,-1);
+        if (e->key()==a[2])
+            move=QPoint(1,0);
+        if (e->key()==a[3])
+            move=QPoint(0,1);
+        move*=1;
+//        qDebug()<<move;
+        b->add_move(move);
+  //      QCursor::setPos(QPoint(300,300));
+    }
+};
+
+//ez felelős a szervertől a kliens felé menő kommunikációért.
 class RemoteBallController:public BallController{
 public:
     QTcpSocket * socket;
     qreal sendx,sendy;
+    bool send_image;
     RemoteBallController(QTcpSocket *socket):socket(socket)
     {
-        sendx=0;
-        sendy=0;
+        quint8 send_image_int;
+                socket->read((char*)&send_image_int,1);
+                if (send_image_int) send_image=true;
+                else send_image=false;
     }
 
     void update()
@@ -318,18 +372,18 @@ public:
                 b->getdirection().rx()+=(dirx);
                 b->getdirection().ry()+=(diry);
                 sendx=0;sendy=0;
-      //          qDebug()<<"read_dir"<<b->getdirection().rx()<<b->getdirection().ry();
-
         }
     }
 
     void send(QImage * a)
     {
+        if (!send_image) return;
         QDataStream st(socket);
         st<<*a;
     }
     void send(const QByteArray & ba)
     {
+        if (!send_image) return;
         if (socket->bytesToWrite()==0)
         socket->write(ba);
         socket->flush();
@@ -339,31 +393,81 @@ public:
 
 class client{
 public:
-    QVector<Ball*> *b;
-    QTcpSocket * socket;
+    QVector<Ball*> *b;//ez nem a shared-ra pointer.mert akkor az elemek kétszer kerülnének be.
+    QVector<QTcpSocket *> socket;
     Ball * ownball;
     qreal last_sent_x,last_sent_y;
     QImage * canvas;
-    client(QString host,QVector<Ball*> *b,QImage * canvas):b(b),canvas(canvas)
+    client_settings s;
+    int mouse_pos;
+    int k1_pos;
+    int k2_pos;
+    LocalBalllController * mouse_cont;
+    LocalKeyBallController * k1,*k2;
+    client(client_settings cls,QVector<Ball*> *a,QImage * canvas):b(0),canvas(canvas)
     {
-        ownball=b->operator [](0);
-        socket=new QTcpSocket();
-        socket->connectToHost(host,12345);
-        last_sent_x=0;
-        last_sent_y=0;
+        b=new QVector<Ball*>();
+        mouse_pos=-1;
+        k1_pos=-1;
+        k2_pos=-1;
+        s=cls;
+        qDebug()<<"host"<<cls.host;
+        bool need_image=cls.need_image;
+#define add_socket(flag,pos) if (flag) {b->push_back(new Ball(QPointF()));socket.push_back(new QTcpSocket() );pos=socket.size()-1;socket.last()->connectToHost(cls.host,12345);quint8 need_image_int;if (need_image) {quint8 need_image_int=1;need_image=false;}else {} socket.last()->write((char*)&need_image_int,1); }
+        add_socket(cls.keyboard1,k1_pos);
+        add_socket(cls.keyboard2,k2_pos);
+        add_socket(cls.mouse,mouse_pos);
+#undef add_socket
+        qDebug()<<"mouse:"<<cls.mouse;
+        qDebug()<<"cls k1:"<<cls.keyboard1;
+        qDebug()<<"cls k2:"<<cls.keyboard2;
+        if (mouse_pos!=-1)
+        {mouse_cont=new LocalBalllController();
+         mouse_cont->setBall(b->operator [](mouse_pos));
+        }
+        if (k1_pos!=-1)
+        {
+            k1=new LocalKeyBallController(65, //a
+                                          87 ,//w
+                                          68 ,//d
+                                          83 );//s
+            k1->setBall(b->operator [](k1_pos));
+        }
+        if (k2_pos!=-1)
+        {
+            k2=new LocalKeyBallController();
+            k2->setBall(b->operator [](k1_pos));
+        }
     }
     void update()
     {
-        while (socket->bytesAvailable()>0)
+        while (socket[0]->bytesAvailable()>0)
         {
          //   qDebug()<<"aval:"<<socket->bytesAvailable();
 //            QDataStream st(socket);
   //          st>>*canvas;
-        readimage(socket,canvas);
+            readimage(socket[0],canvas);
         }
-        socket->write(ownball->toarray());
-        ownball->direction.rx()=0;
-        ownball->direction.ry()=0;
+        for(int i=0;i<qMin(b->size(),socket.size());i++)
+        {
+        socket[i]->write(b->operator [](i)->toarray());
+        qDebug()<<        b->operator [](i)->direction.rx()<<" "<<b->operator [](i)->direction.ry();
+        b->operator [](i)->direction.rx()=0;
+        b->operator [](i)->direction.ry()=0;
+        }
+    }
+    void mouseMoveEvent(QMouseEvent *e)
+    {
+       if (mouse_pos>=0)
+           mouse_cont->process(e);
+    }
+    virtual void keyPressEvent(QKeyEvent *e)
+    {
+        if (k1_pos>=0)
+            k1->process(e);
+        if (k2_pos>=0)
+            k2->process(e);
+        //cli->keyPressEvent(e);
     }
 };
 
@@ -388,7 +492,7 @@ public:
     {
         if (tcpServer->hasPendingConnections() )
         {
-
+            qDebug()<<"becsatlakozo";
             Ball * newb=jatekmap.new_user();
             if (newb)
             {
@@ -430,8 +534,7 @@ public:
 public:
     server * s;
     client * cli;
-    QVector<Ball*> *remoteballs;
-    LocalBalllController c;
+    QVector<Ball*> *remoteballs;//valszeg nem kell
     QImage *gamecanvas;
     QMutex m;
 public:
@@ -443,14 +546,50 @@ public:
         s=0;
         cli=0;
         remoteballs=new QVector<Ball*>();
-        if (argc==1)
-            s=new server(remoteballs,gamecanvas);
-        else
+        QStringList arglist;
+        for (int i=1;i<argc;i++)
         {
-            Ball *a=new Ball(QPointF(300,300));
-            remoteballs->push_back(a);
-            c.setBall(a);
-            cli=new client(QString(argv[1]),remoteballs,gamecanvas);
+            arglist.push_back(argv[i]);
+        }
+        QString type;
+        if (arglist.size()==0)
+            arglist.push_back("server");//server,no beállítások,ha nincs semmi paraméter.
+        type=arglist.takeFirst();
+        bool valid_argument=false;
+        if (type=="server")
+        {s=new server(remoteballs,gamecanvas);
+            valid_argument=true;
+}
+        if ( (type=="client" && arglist.size()>1) ||
+             ( type=="server" && arglist.size()>0 ) )
+        {
+            valid_argument=true;
+            client_settings cli_set;
+            cli_set.mouse=false;cli_set.keyboard1=false;cli_set.keyboard2=false;
+            if (type=="server")
+                cli_set.host="localhost";
+                else
+                cli_set.host=arglist.takeFirst();
+            for (int i=0;i<arglist.size();i++)
+            {
+                bool need_image=false;
+/*#define check_argument(key,variable)                 if (arglist[i]==key)  {qDebug()<<key<<__LINE__;variable=true;need_image=true;}
+                check_argument("k1",cli_set.keyboard1);
+                check_argument("k2",cli_set.keyboard2);
+                check_argument("mouse",cli_set.mouse);
+#undef check_argument
+*/
+                if (arglist[i]=="k1")  {cli_set.keyboard1=true;need_image=true;}
+                if (arglist[i]=="k2")  {cli_set.keyboard2=true;need_image=true;}
+                if (arglist[i]=="mouse")  {cli_set.mouse=true;need_image=true;}
+                if (need_image)
+                    cli_set.need_image=true;
+            }
+            //FIXME:egyelore mindig true lesz a need_image.az h melyik socketen kerek kepoeet azt majd egy lentebbi szint fogja kitalalni.
+            cli=new client(cli_set,remoteballs,gamecanvas);
+        }
+        else if (!valid_argument || (type=="client") ) {
+            qFatal("hibas parameterezes!!!parameterezes:app_name [server|client] [hostname kliensnel] k1,k2,mouse.amelyiket kered olyan kontrollered lesz.nem lehet olyat indítani ahol egyiket sem kered.");
         }
         m.unlock();
         start(width,height);
@@ -497,7 +636,7 @@ public:
     {//pos az elozohoz kepest?
         m.lock();
         if (cli)
-        c.process(e);
+            cli->mouseMoveEvent(e);
         update();
         m.unlock();
     }
@@ -506,6 +645,9 @@ public:
     }
     virtual void keyPressEvent(QKeyEvent *e)
     {
+  //           qDebug()<<e->key();
+        if (cli)
+          cli->keyPressEvent(e);
         if (e->text()=="q")
         exit(0);
     }
