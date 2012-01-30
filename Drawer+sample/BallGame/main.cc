@@ -347,7 +347,7 @@ public:
             move+=QPoint(0,1);
             pushed[3]=true;
         }
-        move*=11;
+        move*=70;
 //        qDebug()<<move;
         b->add_move(move);
   //      QCursor::setPos(QPoint(300,300));
@@ -636,7 +636,7 @@ public:
         }
         m.unlock();
         start(width,height);
-                QWidget::startTimer(30);
+                QWidget::startTimer(8);
     }
 
     void timerEvent(QTimerEvent *e){
