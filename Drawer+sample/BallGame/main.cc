@@ -310,9 +310,6 @@ class LocalKeyBallController:public BallController
     QVector<int> a;
     QVector<bool> pushed;
 public:
-    LocalKeyBallController()
-    {
-    }
     LocalKeyBallController(int ka, int b, int c , int d)
     {
         a.push_back(ka);
@@ -468,8 +465,11 @@ public:
         }
         if (k2_pos!=-1)
         {
-            k2=new LocalKeyBallController();
-            k2->setBall(b->operator [](k1_pos));
+            k2=new LocalKeyBallController(16777234 ,
+                                          16777235 ,
+                                          16777236 ,
+                                          16777237 );
+            k2->setBall(b->operator [](k2_pos));
         }
     }
     void update()
@@ -484,7 +484,7 @@ public:
         for(int i=0;i<qMin(b->size(),socket.size());i++)
         {
         socket[i]->write(b->operator [](i)->toarray());
-        qDebug()<<        b->operator [](i)->direction.rx()<<" "<<b->operator [](i)->direction.ry();
+        //qDebug()<<        b->operator [](i)->direction.rx()<<" "<<b->operator [](i)->direction.ry();
         b->operator [](i)->direction.rx()=0;
         b->operator [](i)->direction.ry()=0;
         }
@@ -674,7 +674,7 @@ public:
       */  //delete a;
 
     }
-    
+
     void mouseMoveEvent(QMouseEvent *e)
     {//pos az elozohoz kepest?
         m.lock();
@@ -688,7 +688,8 @@ public:
     }
     virtual void keyPressEvent(QKeyEvent *e)
     {
-  //           qDebug()<<e->key();
+
+     qDebug()<<e->key();
         if (cli)
           cli->keyPressEvent(e);
         if (e->text()=="q")
@@ -700,7 +701,7 @@ public:
           cli->keyReleaseEvent(e);
     }
 
-    
+
 };
 
 
