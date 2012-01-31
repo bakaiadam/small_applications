@@ -1,5 +1,5 @@
 #include <../drawer.hh>
-
+#include <chipmunk/chipmunk.h>
 #define ballsize 10
 #define w 800
 #define h 600
@@ -69,8 +69,30 @@ public:
     qint32 &getlap(){return lap;}
     bool start;
     const QPointF startpos;
+    cpSpace *space;
+    cpBody * body;
     Ball(QPointF f):pos(f),startpos(0,0)//nagyon csunya.
     {
+      space=0;
+      body=0;
+    }
+
+    Ball(QPointF f,cpSpace *space):pos(f),startpos(0,0)//nagyon csunya.
+    {
+      this->space=space;
+
+      cpFloat radius = 5;
+      cpFloat mass = 1;
+      cpFloat moment = cpMomentForCircle(mass, 0, radius, cpvzero);
+
+      body = cpSpaceAddBody(space, cpBodyNew(mass, moment));
+      cpBodySetPos(body, cpv(pos.x(), pos.y()));
+
+      cpShape *ballShape = cpSpaceAddShape(space, cpCircleShapeNew(body, radius, cpvzero));
+      cpShapeSetElasticity(ballShape, 0.5f);
+      cpShapeSetFriction(ballShape, 0.0f);
+
+
         lap=0;
         start=true;
     }
@@ -93,8 +115,17 @@ public:
     }
     void move()
     {
-        double szorzo=0.01;
+      cpVect v=cpBodyGetPos(body);
+      pos.rx()=v.x;
+      pos.ry()=v.y;
+      if (body)
+      cpBodyApplyImpulse(body,cpv(direction.rx()*0.05,direction.ry()*0.05),cpv(0,0));
+      direction.rx()=0;
+      direction.ry()=0;
+//        cpBodyApplyForce(body,cpv(direction.rx()*0.001,direction.ry()*0.001),cpv(0,0));
+        /*        double szorzo=0.01;
         pos+=direction*szorzo;
+        */
         //qDebug()<<direction;
     }
 
@@ -162,29 +193,61 @@ class AlapMap:public GameMap
     QVector<int> pontok;
     QPointF elso,masodik;
     QRegion tilos_helyek;
+
+    QVector<cpBody*> bodies;
+    cpSpace *space;
+    cpFloat timeStep;
 public:
     AlapMap()
     {
-        elso=QPointF(20,20);
-        masodik=QPointF(w-20,h-20);
+      //http://chipmunk-physics.net/release/ChipmunkLatest-Docs/#cpShape
+        int dist_from_border=40;
+        elso=QPointF(dist_from_border,dist_from_border);
+        masodik=QPointF(w-dist_from_border,h-dist_from_border);
         tilos_helyek+=(QRect(0,200,700,20)  );
         tilos_helyek+=(QRect(100,300,700,20));
-//        tilos_helyek=tilos_helyek.intersect(QRect(0,200,700,20) );
+
+        timeStep = 1.0/60.0;
+        cpVect gravity = cpv(0, 10);
+        space = cpSpaceNew();
+        cpSpaceSetGravity(space, gravity);
+
+        cpShape *ground = cpSegmentShapeNew(space->staticBody, cpv(0, 0), cpv(0, 600), 0);
+        cpShapeSetFriction(ground, 0.0);
+        cpShapeSetElasticity(ground, 1.0f);
+        cpSpaceAddShape(space, ground);
+
+        ground = cpSegmentShapeNew(space->staticBody, cpv(0, 0), cpv(800, 0), 0);
+        cpShapeSetFriction(ground, 0.0);
+        cpShapeSetElasticity(ground, 1.0f);
+        cpSpaceAddShape(space, ground);
+
+        ground = cpSegmentShapeNew(space->staticBody, cpv(0, 600), cpv(800, 600), 0);
+        cpShapeSetFriction(ground, 0.0);
+        cpShapeSetElasticity(ground, 1.0f);
+        cpSpaceAddShape(space, ground);
+
+        ground = cpSegmentShapeNew(space->staticBody, cpv(800, 0), cpv(800, 600), 0);
+        cpShapeSetFriction(ground, 0.0);
+        cpShapeSetElasticity(ground, 1.0f);
+        cpSpaceAddShape(space, ground);
+
+        //        tilos_helyek=tilos_helyek.intersect(QRect(0,200,700,20) );
 
     }
 
     Ball * new_user()
     {
         if (pontok.size()==0)
-            return new Ball(elso );
+            return new Ball(elso,space );
         if (pontok.size()==1)
-            return new Ball(masodik );
+            return new Ball(masodik,space );
         return NULL;
     }
 
     void gameplay_logic(QVector<Ball*> &b)
     {
-        for (int i=0;i<b.size();i++)
+  /*      for (int i=0;i<b.size();i++)
         {
             QPointF icenter(b.operator [](i)->getpos().rx()+ballsize/2,b.operator [](i)->getpos().ry()+ballsize/2  );
             for (int j=i+1;j<b.size();j++)
@@ -198,8 +261,10 @@ public:
                     }
             }
             wall_collision(b.operator [](i));
-
         }
+*/
+      cpSpaceStep(space, timeStep);
+
 #define a(i,start,stop) if (b.size()>i) if (distance(b[i]->pos,stop)<30 || tilos_helyek.contains((QPoint(b[i]->pos.x(),b[i]->pos.y()) ) ) ) \
         {\
             if (distance(b[i]->pos,stop)<30 ) pontok[i]++;\
