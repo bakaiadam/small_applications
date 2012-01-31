@@ -1,5 +1,6 @@
 #include <../drawer.hh>
-#include <chipmunk/chipmunk.h>
+//#include <chipmunk/chipmunk.h>
+#include <chipmunk_private.h>
 #define ballsize 10
 #define w 800
 #define h 600
@@ -8,6 +9,45 @@
 #include <QTcpSocket>
 #include <QTcpServer>
 //this game will be like labirinth  lite for mobile phones.
+
+void
+drawShape(cpShape *shape, void *painter_pointer)
+{
+    QPainter &p=*((QPainter*)painter_pointer);
+    cpBody *body = shape->body;
+    //Color color = ColorForShape(shape);
+
+    switch(shape->klass->type){
+        case CP_CIRCLE_SHAPE: {
+            cpCircleShape *circle = (cpCircleShape *)shape;
+            //ChipmunkDebugDrawCircle(circle->tc, body->a, circle->r, LINE_COLOR, color);
+//            qDebug()<<"x y"<<(int)circle->tc.x<<(int)circle->tc.y;
+            p.drawChord((int)circle->tc.x,(int)circle->tc.y,circle->r,circle->r,0,5760);
+            break;
+        }
+        case CP_SEGMENT_SHAPE: {
+            cpSegmentShape *seg = (cpSegmentShape *)shape;
+            //ChipmunkDebugDrawFatSegment(seg->ta, seg->tb, seg->r, LINE_COLOR, color);
+            break;
+        }
+        case CP_POLY_SHAPE: {
+            cpPolyShape *poly = (cpPolyShape *)shape;
+            QPoint * points=new QPoint[poly->numVerts];
+            for (int i=0;i<poly->numVerts;i++)
+            {
+                points->rx()=poly->tVerts[i].x;
+                points->ry()=poly->tVerts[i].y;
+            }
+            p.drawPolygon(points,poly->numVerts);
+//            ChipmunkDebugDrawPolygon(poly->numVerts, poly->tVerts, LINE_COLOR, color);
+            delete points;
+            break;
+        }
+        default:
+        qDebug()<<shape->klass->type;
+        break;
+    }
+}
 
 
 class client_settings{
@@ -200,6 +240,7 @@ class AlapMap:public GameMap
 public:
     AlapMap()
     {
+        //http://files.slembcke.net/chipmunk/release/ChipmunkLatest-Docs/#cpShape
       //http://chipmunk-physics.net/release/ChipmunkLatest-Docs/#cpShape
         int dist_from_border=40;
         elso=QPointF(dist_from_border,dist_from_border);
@@ -212,12 +253,33 @@ public:
         space = cpSpaceNew();
         cpSpaceSetGravity(space, gravity);
 
+  //      cpShape *ground = cpSegmentShapeNew(space->staticBody, cpv(0, 0), cpv(0, 600), 0);
         cpShape *ground = cpSegmentShapeNew(space->staticBody, cpv(0, 0), cpv(0, 600), 0);
-        cpShapeSetFriction(ground, 0.0);
+          cpShapeSetFriction(ground, 0.0);
         cpShapeSetElasticity(ground, 1.0f);
         cpSpaceAddShape(space, ground);
 
-        ground = cpSegmentShapeNew(space->staticBody, cpv(0, 0), cpv(800, 0), 0);
+    /*    cpVect * v= new cpVect[4];
+        v[0].x=0;
+        v[0].y=0;
+        v[1].x=5;
+        v[1].y=0;
+        v[2].x=5;
+        v[2].y=600;
+        v[3].x=0;
+        v[3].y=600;
+    */
+        float sw=10;
+        float sh=10;
+        cpVect theVerts[] ={
+        cpv( - sw, - sh),
+        cpv( - sw,   sh),
+        cpv(   sw,   sh),
+        cpv(   sw, - sh)
+        };
+        //ground = cpSegmentShapeNew(space->staticBody, cpv(0, 0), cpv(800, 0), 0);
+        ground=cpPolyShapeNew(space->staticBody,4,theVerts,/*cpvzero*/cpv(400,400));
+//        cpShape *cpPolyShapeNew(cpBody *body, int numVerts, cpVect *verts, cpVect offset)
         cpShapeSetFriction(ground, 0.0);
         cpShapeSetElasticity(ground, 1.0f);
         cpSpaceAddShape(space, ground);
@@ -227,7 +289,7 @@ public:
         cpShapeSetElasticity(ground, 1.0f);
         cpSpaceAddShape(space, ground);
 
-        ground = cpSegmentShapeNew(space->staticBody, cpv(800, 0), cpv(800, 600), 0);
+        ground = cpSegmentShapeNew(space->staticBody, cpv(700, 0), cpv(700, 600), 0);
         cpShapeSetFriction(ground, 0.0);
         cpShapeSetElasticity(ground, 1.0f);
         cpSpaceAddShape(space, ground);
@@ -311,6 +373,10 @@ public:
     void update_canvas(QVector<Ball*> &balls,QPainter &p)
     {
         p.fillRect(QRect(0,0,w,h),Qt::white);
+        p.setBrush(QBrush(QColor::fromRgb(0,0,0) ) );
+        cpSpaceEachShape(space, drawShape, &p);
+        /*
+        p.fillRect(QRect(0,0,w,h),Qt::white);
                 int i=0;
                 foreach (QRect r,tilos_helyek.rects() )
                 {
@@ -325,7 +391,8 @@ public:
                 i++;
                 }
                 p.setBrush(Qt::NoBrush);
-//                p.drawRect(0,0,border,border);
+*/
+        //                p.drawRect(0,0,border,border);
   //              p.drawRect(w-border,0,border,border);
     //            p.drawRect(w-border,h-border,border,border);
       //          p.drawRect(0,h-border,border,border);
