@@ -208,7 +208,7 @@ public:
         tilos_helyek+=(QRect(100,300,700,20));
 
         timeStep = 1.0/60.0;
-        cpVect gravity = cpv(0, 10);
+        cpVect gravity = cpv(0, 0);
         space = cpSpaceNew();
         cpSpaceSetGravity(space, gravity);
 
