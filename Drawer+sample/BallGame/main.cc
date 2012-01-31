@@ -31,12 +31,14 @@ drawShape(cpShape *shape, void *painter_pointer)
             break;
         }
         case CP_POLY_SHAPE: {
+        qDebug()<<"poli!!!!";
             cpPolyShape *poly = (cpPolyShape *)shape;
             QPoint * points=new QPoint[poly->numVerts];
             for (int i=0;i<poly->numVerts;i++)
             {
-                points->rx()=poly->tVerts[i].x;
-                points->ry()=poly->tVerts[i].y;
+                points[i].rx()=poly->tVerts[i].x;
+                points[i].ry()=poly->tVerts[i].y;
+                //qDebug()<<points->rx()<<" "<<points->ry();
             }
             p.drawPolygon(points,poly->numVerts);
 //            ChipmunkDebugDrawPolygon(poly->numVerts, poly->tVerts, LINE_COLOR, color);
@@ -269,7 +271,7 @@ public:
         v[3].x=0;
         v[3].y=600;
     */
-        float sw=10;
+        float sw=20;
         float sh=10;
         cpVect theVerts[] ={
         cpv( - sw, - sh),
@@ -277,8 +279,11 @@ public:
         cpv(   sw,   sh),
         cpv(   sw, - sh)
         };
-        //ground = cpSegmentShapeNew(space->staticBody, cpv(0, 0), cpv(800, 0), 0);
-        ground=cpPolyShapeNew(space->staticBody,4,theVerts,/*cpvzero*/cpv(400,400));
+        float mass=0.2;
+        cpSpaceAddShape(space, cpPolyShapeNew(cpSpaceAddBody(space, cpBodyNew(mass, cpMomentForPoly(mass, 4, theVerts, cpv(100,100)))) , 4, theVerts, cpv(100,100)));
+
+        ground = cpSegmentShapeNew(space->staticBody, cpv(0, 0), cpv(800, 0), 0);
+        //ground=cpPolyShapeNew(space->staticBody,4,theVerts,/*cpvzero*/cpv(100,100));
 //        cpShape *cpPolyShapeNew(cpBody *body, int numVerts, cpVect *verts, cpVect offset)
         cpShapeSetFriction(ground, 0.0);
         cpShapeSetElasticity(ground, 1.0f);
