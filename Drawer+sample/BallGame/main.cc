@@ -10,6 +10,29 @@
 #include <QTcpServer>
 //this game will be like labirinth  lite for mobile phones.
 
+int collision(cpArbiter *arb, cpSpace *mainSpace,
+                                void *ignore) {
+
+    // use this macro to declare two shapes and call
+    // cpArbiterGetShapes which uses the cpArbiter
+    // which contains info on the collision such as
+    // the shapes involved, contacts, normals, etc.
+    CP_ARBITER_GET_SHAPES(arb, a, b);
+
+    // use the data property of the cpShape to pull
+    // out your custom data object
+    //SpaceData * shapeDataA = a->data;
+    //SpaceData * shapeDataB = b->data;
+    qDebug()<<"collision\n";
+    return TRUE;
+//    if ( /* a should collide with b */ ) {
+//        return TRUE;
+//    } else if ( /* a should avoid b */ ) {
+//        return FALSE;
+//    }
+}
+
+
 void
 drawShape(cpShape *shape, void *painter_pointer)
 {
@@ -27,6 +50,7 @@ drawShape(cpShape *shape, void *painter_pointer)
         }
         case CP_SEGMENT_SHAPE: {
             cpSegmentShape *seg = (cpSegmentShape *)shape;
+            p.drawLine(QPoint(seg->ta.x,seg->ta.y),QPoint(seg->tb.x,seg->tb.y));
             //ChipmunkDebugDrawFatSegment(seg->ta, seg->tb, seg->r, LINE_COLOR, color);
             break;
         }
@@ -237,6 +261,8 @@ class AlapMap:public GameMap
     QRegion tilos_helyek;
 
     QVector<cpBody*> bodies;
+        cpBody *porgobody;
+
     cpSpace *space;
     cpFloat timeStep;
 public:
@@ -280,9 +306,32 @@ public:
         cpv(   sw, - sh)
         };
         float mass=0.2;
-        cpSpaceAddShape(space, cpPolyShapeNew(cpSpaceAddBody(space, cpBodyNew(mass, cpMomentForPoly(mass, 4, theVerts, cpv(100,100)))) , 4, theVerts, cpv(100,100)));
+//        cpSpaceAddShape(space, cpPolyShapeNew(cpSpaceAddBody(space, cpBodyNew(mass, cpMomentForPoly(mass, 4, theVerts, cpv(100,100)))) , 4, theVerts, cpv(100,100)));
+        cpSpaceAddShape(space, cpPolyShapeNew( space->staticBody, 4, theVerts, cpv(100,100)));
+cpSpaceAddCollisionHandler(space,0,0,collision,NULL,NULL,NULL,NULL);
+/** space:melyik térben zajolik a dolog,a két nulla pedig a z h milyen collision_id-ju dolgok összeütkörzésénél történjen valami.a mi esetünkben mivel senkinek sem lett beállítva érték,ezért mindegyiknek az értéke nulla,így most minden esetben kiírja azt h collision.*/
+//if (0)
+{
 
-        ground = cpSegmentShapeNew(space->staticBody, cpv(0, 0), cpv(800, 0), 0);
+    cpShape *shape;
+
+    // We create an infinite mass rogue body to attach the line segments too
+    // This way we can control the rotation however we want.
+    porgobody = cpBodyNew(INFINITY, INFINITY);
+    cpBodySetPos(porgobody,cpv(200,150));
+    cpBodySetAngVel(porgobody, 0.4f);
+    // Set up the static box.
+    cpVect a = cpv(0, -50);
+    cpVect b = cpv(0, 50);
+    cpVect c = cpv( 200,  200);
+    cpVect d = cpv( 200, -200);
+
+    shape = cpSpaceAddShape(space, cpSegmentShapeNew(porgobody, a, b, 0.0f));
+    cpShapeSetElasticity(shape, 1.0f);
+    cpShapeSetFriction(shape, 1.0f);
+}
+
+ground = cpSegmentShapeNew(space->staticBody, cpv(0, 0), cpv(800, 0), 0);
         //ground=cpPolyShapeNew(space->staticBody,4,theVerts,/*cpvzero*/cpv(100,100));
 //        cpShape *cpPolyShapeNew(cpBody *body, int numVerts, cpVect *verts, cpVect offset)
         cpShapeSetFriction(ground, 0.0);
@@ -377,6 +426,10 @@ public:
 
     void update_canvas(QVector<Ball*> &balls,QPainter &p)
     {
+        cpFloat dt = 1.0f/60.0f;
+        cpBodyUpdatePosition(porgobody, dt);
+
+
         p.fillRect(QRect(0,0,w,h),Qt::white);
         p.setBrush(QBrush(QColor::fromRgb(0,0,0) ) );
         cpSpaceEachShape(space, drawShape, &p);
