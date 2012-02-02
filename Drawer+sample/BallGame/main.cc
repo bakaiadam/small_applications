@@ -11,27 +11,7 @@
 //this game will be like labirinth  lite for mobile phones.
 
 int collision(cpArbiter *arb, cpSpace *mainSpace,
-                                void *ignore) {
-
-    // use this macro to declare two shapes and call
-    // cpArbiterGetShapes which uses the cpArbiter
-    // which contains info on the collision such as
-    // the shapes involved, contacts, normals, etc.
-    CP_ARBITER_GET_SHAPES(arb, a, b);
-
-    // use the data property of the cpShape to pull
-    // out your custom data object
-    //SpaceData * shapeDataA = a->data;
-    //SpaceData * shapeDataB = b->data;
-    qDebug()<<"collision\n";
-    return TRUE;
-//    if ( /* a should collide with b */ ) {
-//        return TRUE;
-//    } else if ( /* a should avoid b */ ) {
-//        return FALSE;
-//    }
-}
-
+                                void *ignore);
 
 void
 drawShape(cpShape *shape, void *painter_pointer)
@@ -55,7 +35,6 @@ drawShape(cpShape *shape, void *painter_pointer)
             break;
         }
         case CP_POLY_SHAPE: {
-        qDebug()<<"poli!!!!";
             cpPolyShape *poly = (cpPolyShape *)shape;
             QPoint * points=new QPoint[poly->numVerts];
             for (int i=0;i<poly->numVerts;i++)
@@ -131,19 +110,25 @@ qreal sqr(qreal a)
 class Ball
 {
 public:
-    qint32 lap;
-    qint32 &getlap(){return lap;}
+    qint32 points;
+    qint32 &getlap(){return points;}
     bool start;
     const QPointF startpos;
     cpSpace *space;
     cpBody * body;
-    Ball(QPointF f):pos(f),startpos(0,0)//nagyon csunya.
+    Ball(QPointF f):pos(f),startpos(f)//nagyon csunya.
     {
       space=0;
       body=0;
     }
 
-    Ball(QPointF f,cpSpace *space):pos(f),startpos(0,0)//nagyon csunya.
+    void reset_pos()
+    {
+        cpBodySetPos(body,cpv((int)startpos.x(),(int)startpos.y()));
+        cpBodySetVel(body,cpv(0,0));
+    }
+
+    Ball(QPointF f,cpSpace *space):pos(f),startpos(f)//nagyon csunya.
     {
       this->space=space;
 
@@ -155,11 +140,12 @@ public:
       cpBodySetPos(body, cpv(pos.x(), pos.y()));
 
       cpShape *ballShape = cpSpaceAddShape(space, cpCircleShapeNew(body, radius, cpvzero));
+      ballShape->collision_type=1;//1-es a balltype,2-es azok amelyekhez ha hozzaersz ujrakezdodik a jatek.
       cpShapeSetElasticity(ballShape, 0.5f);
       cpShapeSetFriction(ballShape, 0.0f);
+      ballShape->data=this;
 
-
-        lap=0;
+        points=0;
         start=true;
     }
 
@@ -175,7 +161,6 @@ public:
     void add_move(QPointF r)
     {
         QPointF prev_mouse_pos2=r;
-        r=r-startpos;
         direction+=r;
 //        qDebug()<<direction;
     }
@@ -235,7 +220,7 @@ public:
         msg.append (  (char *)&dirx,4 );
         msg.append (  (char *)&diry,4 );
 
-        msg.append (  (char *)&lap,4 );
+        msg.append (  (char *)&points,4 );
 
         return msg;
     }
@@ -308,7 +293,8 @@ public:
         float mass=0.2;
 //        cpSpaceAddShape(space, cpPolyShapeNew(cpSpaceAddBody(space, cpBodyNew(mass, cpMomentForPoly(mass, 4, theVerts, cpv(100,100)))) , 4, theVerts, cpv(100,100)));
         cpSpaceAddShape(space, cpPolyShapeNew( space->staticBody, 4, theVerts, cpv(100,100)));
-cpSpaceAddCollisionHandler(space,0,0,collision,NULL,NULL,NULL,NULL);
+cpSpaceAddCollisionHandler(space,1,2,collision,NULL,NULL,NULL,NULL);
+
 /** space:melyik térben zajolik a dolog,a két nulla pedig a z h milyen collision_id-ju dolgok összeütkörzésénél történjen valami.a mi esetünkben mivel senkinek sem lett beállítva érték,ezért mindegyiknek az értéke nulla,így most minden esetben kiírja azt h collision.*/
 //if (0)
 {
@@ -329,6 +315,7 @@ cpSpaceAddCollisionHandler(space,0,0,collision,NULL,NULL,NULL,NULL);
     shape = cpSpaceAddShape(space, cpSegmentShapeNew(porgobody, a, b, 0.0f));
     cpShapeSetElasticity(shape, 1.0f);
     cpShapeSetFriction(shape, 1.0f);
+    shape->collision_type=2;
 }
 
 ground = cpSegmentShapeNew(space->staticBody, cpv(0, 0), cpv(800, 0), 0);
@@ -1017,4 +1004,33 @@ else
     }
 
     return false;
+}
+
+
+int collision(cpArbiter *arb, cpSpace *mainSpace,
+                                void *ignore) {
+
+    // use this macro to declare two shapes and call
+    // cpArbiterGetShapes which uses the cpArbiter
+    // which contains info on the collision such as
+    // the shapes involved, contacts, normals, etc.
+    CP_ARBITER_GET_SHAPES(arb, a, b);
+
+    Ball * ba=(Ball*)a->data;
+    if (ba) ba->reset_pos();
+    ba=(Ball*)b->data;
+    if (ba) ba->reset_pos();
+
+
+    // use the data property of the cpShape to pull
+    // out your custom data object
+    //SpaceData * shapeDataA = a->data;
+    //SpaceData * shapeDataB = b->data;
+    qDebug()<<"collision\n";
+    return TRUE;
+//    if ( /* a should collide with b */ ) {
+//        return TRUE;
+//    } else if ( /* a should avoid b */ ) {
+//        return FALSE;
+//    }
 }
