@@ -14,46 +14,7 @@ int collision(cpArbiter *arb, cpSpace *mainSpace,
                                 void *ignore);
 
 void
-drawShape(cpShape *shape, void *painter_pointer)
-{
-    QPainter &p=*((QPainter*)painter_pointer);
-    cpBody *body = shape->body;
-    //Color color = ColorForShape(shape);
-
-    switch(shape->klass->type){
-        case CP_CIRCLE_SHAPE: {
-            cpCircleShape *circle = (cpCircleShape *)shape;
-            //ChipmunkDebugDrawCircle(circle->tc, body->a, circle->r, LINE_COLOR, color);
-//            qDebug()<<"x y"<<(int)circle->tc.x<<(int)circle->tc.y;
-            p.drawChord((int)circle->tc.x,(int)circle->tc.y,circle->r,circle->r,0,5760);
-            break;
-        }
-        case CP_SEGMENT_SHAPE: {
-            cpSegmentShape *seg = (cpSegmentShape *)shape;
-            p.drawLine(QPoint(seg->ta.x,seg->ta.y),QPoint(seg->tb.x,seg->tb.y));
-            //ChipmunkDebugDrawFatSegment(seg->ta, seg->tb, seg->r, LINE_COLOR, color);
-            break;
-        }
-        case CP_POLY_SHAPE: {
-            cpPolyShape *poly = (cpPolyShape *)shape;
-            QPoint * points=new QPoint[poly->numVerts];
-            for (int i=0;i<poly->numVerts;i++)
-            {
-                points[i].rx()=poly->tVerts[i].x;
-                points[i].ry()=poly->tVerts[i].y;
-                //qDebug()<<points->rx()<<" "<<points->ry();
-            }
-            p.drawPolygon(points,poly->numVerts);
-//            ChipmunkDebugDrawPolygon(poly->numVerts, poly->tVerts, LINE_COLOR, color);
-            delete points;
-            break;
-        }
-        default:
-        qDebug()<<shape->klass->type;
-        break;
-    }
-}
-
+drawShape(cpShape *shape, void *painter_pointer);//FIXME:ebbol tenyleg lehetne eleg konnyen valami qbytearray-t csinalni es azt kuldeni,csak akkor el lesz festve a kep kuldes lehetosege.meg az nem lenne annyiraflexibilis,viszont sokkal gyorsabb.
 
 class client_settings{
 public:
@@ -116,7 +77,8 @@ public:
     const QPointF startpos;
     cpSpace *space;
     cpBody * body;
-    Ball(QPointF f):pos(f),startpos(f)//nagyon csunya.
+    QColor color;
+    Ball()//ha így hivod akkor kliensbol vagy cska azert hasznalod h kenyelmesen le legyenek kezelve a direction-ök.
     {
       space=0;
       body=0;
@@ -128,7 +90,7 @@ public:
         cpBodySetVel(body,cpv(0,0));
     }
 
-    Ball(QPointF f,cpSpace *space):pos(f),startpos(f)//nagyon csunya.
+    Ball(QPointF f,cpSpace *space,QColor color):pos(f),startpos(f),color(color)
     {
       this->space=space;
 
@@ -342,9 +304,9 @@ ground = cpSegmentShapeNew(space->staticBody, cpv(0, 0), cpv(800, 0), 0);
     Ball * new_user()
     {
         if (pontok.size()==0)
-            return new Ball(elso,space );
+            return new Ball(elso,space,QColor::fromHsv(0,255,255) );
         if (pontok.size()==1)
-            return new Ball(masodik,space );
+            return new Ball(masodik,space,QColor::fromHsv(180,255,255) );
         return NULL;
     }
 
@@ -620,7 +582,7 @@ public:
         s=cls;
         qDebug()<<"host"<<cls.host;
         bool need_image=cls.need_image;
-#define add_socket(flag,pos) if (flag) {b->push_back(new Ball(QPointF()));socket.push_back(new QTcpSocket() );pos=socket.size()-1;socket.last()->connectToHost(cls.host,12345);quint8 need_image_int;if (need_image) {quint8 need_image_int=1;need_image=false;}else {} socket.last()->write((char*)&need_image_int,1); }
+#define add_socket(flag,pos) if (flag) {b->push_back(new Ball());socket.push_back(new QTcpSocket() );pos=socket.size()-1;socket.last()->connectToHost(cls.host,12345);quint8 need_image_int;if (need_image) {quint8 need_image_int=1;need_image=false;}else {} socket.last()->write((char*)&need_image_int,1); }
         add_socket(cls.keyboard1,k1_pos);
         add_socket(cls.keyboard2,k2_pos);
         add_socket(cls.mouse,mouse_pos);
@@ -1033,4 +995,67 @@ int collision(cpArbiter *arb, cpSpace *mainSpace,
 //    } else if ( /* a should avoid b */ ) {
 //        return FALSE;
 //    }
+}
+
+void
+drawShape(cpShape *shape, void *painter_pointer)//FIXME:ebbol tenyleg lehetne eleg konnyen valami qbytearray-t csinalni es azt kuldeni,csak akkor el lesz festve a kep kuldes lehetosege.meg az nem lenne annyiraflexibilis,viszont sokkal gyorsabb.
+{
+
+#define setcolor_do_undo(color,action) { \
+    QBrush b_orig=p.brush();\
+    QPen p_orig=p.pen();\
+    p.setPen(color);\
+    p.setBrush(color);\
+    action \
+    p.setBrush(b_orig);\
+    p.setPen(p_orig);\
+    }
+
+    QPainter &p=*((QPainter*)painter_pointer);
+    cpBody *body = shape->body;
+    //Color color = ColorForShape(shape);
+
+    switch(shape->klass->type){
+        case CP_CIRCLE_SHAPE: {
+            cpCircleShape *circle = (cpCircleShape *)shape;
+            //ChipmunkDebugDrawCircle(circle->tc, body->a, circle->r, LINE_COLOR, color);
+//            qDebug()<<"x y"<<(int)circle->tc.x<<(int)circle->tc.y;
+            setcolor_do_undo(((Ball*)shape->data)->color,p.drawChord((int)circle->tc.x,(int)circle->tc.y,circle->r,circle->r,0,5760););
+            break;
+        }
+        case CP_SEGMENT_SHAPE: {
+            cpSegmentShape *seg = (cpSegmentShape *)shape;
+#define draw p.drawLine(QPoint(seg->ta.x,seg->ta.y),QPoint(seg->tb.x,seg->tb.y));
+            if (shape->collision_type==2)
+                setcolor_do_undo(QColor::fromHsv(270,255,255),draw;)
+                else
+                draw;
+#undef draw
+        //ChipmunkDebugDrawFatSegment(seg->ta, seg->tb, seg->r, LINE_COLOR, color);
+            break;
+        }
+        case CP_POLY_SHAPE: {
+            cpPolyShape *poly = (cpPolyShape *)shape;
+            QPoint * points=new QPoint[poly->numVerts];
+            for (int i=0;i<poly->numVerts;i++)
+            {
+                points[i].rx()=poly->tVerts[i].x;
+                points[i].ry()=poly->tVerts[i].y;
+                //qDebug()<<points->rx()<<" "<<points->ry();
+            }
+#define draw             p.drawPolygon(points,poly->numVerts);
+            if (shape->collision_type==2)
+                setcolor_do_undo(QColor::fromHsv(270,255,255),draw)
+            else
+                draw;
+#undef draw
+
+//            ChipmunkDebugDrawPolygon(poly->numVerts, poly->tVerts, LINE_COLOR, color);
+            delete points;
+            break;
+        }
+        default:
+        qDebug()<<shape->klass->type;
+        break;
+    }
 }
