@@ -217,6 +217,18 @@ public:
     QPointF pos;
 };
 
+#include <QDateTime>
+int random_int()
+{
+    static bool first_run=true;
+    if (first_run)
+    {
+        qsrand(QDateTime::currentDateTime().toTime_t());
+        first_run=false;
+    }
+    return qrand();
+}
+
 class AlapMap:public GameMap
 {//van benne pattogas.
     QVector<int> pontok;
@@ -291,22 +303,28 @@ void add_dest_points()
 
         cpShape *shape;
 
+        int reset_bodies_num=10;
+        for (int i=0;i<reset_bodies_num;i++){
         // We create an infinite mass rogue body to attach the line segments too
         // This way we can control the rotation however we want.
         porgobody = cpBodyNew(INFINITY, INFINITY);
-        cpBodySetPos(porgobody,cpv(200,150));
-        cpBodySetAngVel(porgobody, 0.4f);
+        cpBodySetPos(porgobody,cpv(random_int()%(w-200)+100,
+                                   random_int()%(h-200)+100
+                                   ));
+        cpBodySetAngVel(porgobody, (random_int()%1000)/100.0-5.0 );
         // Set up the static box.
-        cpVect a = cpv(0, -50);
-        cpVect b = cpv(0, 50);
-        cpVect c = cpv( 200,  200);
-        cpVect d = cpv( 200, -200);
+        float angle=((float)(random_int()%720))/180.0*M_PI;
+        float length=(random_int()%20)*7+20;
+        cpVect a = cpv(sin(angle)*length, length*cos(angle) );
+        //        cpVect b = cpv(a.y, -1.0*a.x);
+        cpVect b = cpv(sin(angle+M_PI)*length, length*cos(angle+M_PI) );
 
         shape = cpSpaceAddShape(space, cpSegmentShapeNew(porgobody, a, b, 0.0f));
         cpShapeSetElasticity(shape, 1.0f);
         cpShapeSetFriction(shape, 1.0f);
         shape->collision_type=2;
         bodies_for_update.push_back(porgobody);
+        }
     }
     void add_simple_bodies()
     {
