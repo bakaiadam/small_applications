@@ -10,9 +10,17 @@
 #include <QTcpServer>
 //this game will be like labirinth  lite for mobile phones.
 
+cpVect qpointtocpvect(const QPoint &p)
+{
+    return cpv((float)p.x(),(float)p.y());
+}
+
 int collision(cpArbiter *arb, cpSpace *mainSpace,
                                 void *ignore);
-
+int nocollision(cpArbiter *arb, cpSpace *mainSpace,
+                                void *ignore);
+int callbackcollision(cpArbiter *arb, cpSpace *mainSpace,
+                                void *ignore);
 void
 drawShape(cpShape *shape, void *painter_pointer);//FIXME:ebbol tenyleg lehetne eleg konnyen valami qbytearray-t csinalni es azt kuldeni,csak akkor el lesz festve a kep kuldes lehetosege.meg az nem lenne annyiraflexibilis,viszont sokkal gyorsabb.
 
@@ -26,6 +34,16 @@ public:
 };
 
 class Ball;
+
+/**
+ennek az osnek a celja az h ilyenekbe legyenek benne mindig a jatekszabalyok.egeszen a pattogastol kezdve a pontszamolasig minden.*/
+class GameMap{
+   public:
+        virtual void process(QVector<Ball*> &balls, QPainter &p)=0;
+    virtual Ball * new_user()=0;
+};
+
+
 
 void calculate_collision(Ball * a,Ball * b, qreal b2m=1);
 
@@ -68,6 +86,7 @@ qreal sqr(qreal a)
     return a*a;
 }
 
+class AlapMap;
 class Ball
 {
 public:
@@ -78,6 +97,7 @@ public:
     cpSpace *space;
     cpBody * body;
     QColor color;
+    AlapMap * a;
     Ball()//ha így hivod akkor kliensbol vagy cska azert hasznalod h kenyelmesen le legyenek kezelve a direction-ök.
     {
       space=0;
@@ -90,7 +110,12 @@ public:
         cpBodySetVel(body,cpv(0,0));
     }
 
-    Ball(QPointF f,cpSpace *space,QColor color):pos(f),startpos(f),color(color)
+/*    void in_dest(int index)
+    {
+        a->in_dest(this,index);
+    }
+*/
+    Ball(QPointF f,cpSpace *space,QColor color,AlapMap * a):pos(f),startpos(f),color(color),a(a)
     {
       this->space=space;
 
@@ -192,27 +217,30 @@ public:
     QPointF pos;
 };
 
-
-/**
-ennek az osnek a celja az h ilyenekbe legyenek benne mindig a jatekszabalyok.egeszen a pattogastol kezdve a pontszamolasig minden.*/
-class GameMap{
-   public:
-        virtual void process(QVector<Ball*> &balls, QPainter &p)=0;
-    virtual Ball * new_user()=0;
-};
-
 class AlapMap:public GameMap
 {//van benne pattogas.
     QVector<int> pontok;
     QPoint elso,masodik;
+    QVector<Ball *> balls;
 //    QRegion tilos_helyek;
 
 //    QVector<cpBody*> bodies;
     QVector<cpBody*> bodies_for_update;
 
+    QVector<QPoint> dest_points;
     cpSpace *space;
     cpFloat timeStep;
 public:
+    void in_dest(Ball * b,int index)
+    {
+        int ball_index=balls.indexOf(b);
+        if (ball_index!=index)
+        {    b->points++;
+            b->reset_pos();
+        }
+        //ez egy callback hogyha valamelyik labda beleer valamelyik dest pos-ba.
+    }
+
     void add_walls()
     {
         QPoint left_top(0,0);
@@ -232,7 +260,31 @@ public:
             cpSpaceAddShape(space, ground);
         }
     }
+void add_dest_points()
+{
+    dest_points.push_back(elso);//valszeg nem itt hanem a hívójában kéne inicializálni
+    dest_points.push_back(masodik);
+    int i=0;
+    foreach(QPoint p,dest_points)
+    {
+    cpFloat radius = 50;
+    cpFloat mass = 0.01;
+    cpFloat moment = cpMomentForCircle(mass, 0, radius, cpvzero);
 
+    cpBody * body = cpSpaceAddBody(space, cpBodyNew(mass, moment));
+    cpBodySetPos(body, qpointtocpvect(p));
+
+    cpShape *ballShape = cpSpaceAddShape(space, cpCircleShapeNew(body, radius, cpvzero));
+    ballShape->collision_type=1;//1-es a balltype,2-es azok amelyekhez ha hozzaersz ujrakezdodik a jatek.
+    cpShapeSetElasticity(ballShape, 0.5f);
+    cpShapeSetFriction(ballShape, 0.0f);
+    ballShape->collision_type=3;
+    int * k=new int;
+    *k=i;
+    ballShape->data=k;
+    i++;
+    }
+}
     void add_pos_reset_bodies()//ezek azok amelyknek a collision id-je 2
 {
         cpBody *porgobody;
@@ -301,17 +353,24 @@ public:
 add_walls();//maybe there should be an add_standing_static function,that contains add_walls
 add_pos_reset_bodies();
 add_simple_bodies();//non static objects.
+add_dest_points();
 cpSpaceAddCollisionHandler(space,1,2,collision,NULL,NULL,NULL,NULL);
-
+cpSpaceAddCollisionHandler(space,0,3,nocollision,NULL,NULL,NULL,NULL);
+cpSpaceAddCollisionHandler(space,1,3,callbackcollision,NULL,NULL,NULL,NULL);
+cpSpaceAddCollisionHandler(space,2,3,nocollision,NULL,NULL,NULL,NULL);
+//1es:labda,2:es olyan dolog ami visszadob,3as:celok
     }
 
     Ball * new_user()
     {
-        if (pontok.size()==0)
-            return new Ball(elso,space,QColor::fromHsv(0,255,255) );
-        if (pontok.size()==1)
-            return new Ball(masodik,space,QColor::fromHsv(180,255,255) );
-        return NULL;
+        Ball * new_ball=0;
+        if (balls.size()==0)
+            new_ball=new Ball(elso,space,QColor::fromHsv(0,255,255),this );
+        if (balls.size()==1)
+            new_ball=new Ball(masodik,space,QColor::fromHsv(180,255,255),this );
+        if (new_ball)
+            balls.push_back(new_ball);
+        return new_ball;
     }
 
     void gameplay_logic(QVector<Ball*> &b)
@@ -368,7 +427,7 @@ cpSpaceAddCollisionHandler(space,1,2,collision,NULL,NULL,NULL,NULL);
     }
 
     void update_canvas(QVector<Ball*> &balls,QPainter &p)
-    {
+    {//a balls parameter mar nem is kell.
         cpFloat dt = 1.0f/60.0f;
         foreach(cpBody *b,bodies_for_update)
             cpBodyUpdatePosition(b, dt);
@@ -377,6 +436,15 @@ cpSpaceAddCollisionHandler(space,1,2,collision,NULL,NULL,NULL,NULL);
         p.fillRect(QRect(0,0,w,h),Qt::white);
         p.setBrush(QBrush(QColor::fromRgb(0,0,0) ) );
         cpSpaceEachShape(space, drawShape, &p);
+
+        int i=0;
+        foreach (Ball *b,balls)
+                   {
+                       p.setBrush(QBrush(QColor::fromHsv(i*360/balls.size()+1,255,255) ));
+                       p.drawText(i*w/balls.size(),10,QString::number(b->points ) );
+                   i++;
+                   }
+
         /*
         p.fillRect(QRect(0,0,w,h),Qt::white);
                 int i=0;
@@ -963,7 +1031,28 @@ else
     return false;
 }
 
-
+int nocollision(cpArbiter *arb, cpSpace *mainSpace,
+                                void *ignore) {
+return FALSE;
+}
+int callbackcollision(cpArbiter *arb, cpSpace *mainSpace,
+                                void *ignore) {
+//return FALSE;
+    CP_ARBITER_GET_SHAPES(arb, a, b);
+    Ball * ba=0;
+    int dest_index;
+    if (a->collision_type==1)
+    {
+        ba=(Ball*)a->data;
+        dest_index=*((int*)b->data);
+    }
+    else
+{        ba=(Ball*)b->data;
+         dest_index=*((int*)a->data);
+    }
+    ba->a->in_dest(ba,dest_index);
+    return FALSE;
+}
 int collision(cpArbiter *arb, cpSpace *mainSpace,
                                 void *ignore) {
 
@@ -1014,8 +1103,14 @@ drawShape(cpShape *shape, void *painter_pointer)//FIXME:ebbol tenyleg lehetne el
         case CP_CIRCLE_SHAPE: {
             cpCircleShape *circle = (cpCircleShape *)shape;
             //ChipmunkDebugDrawCircle(circle->tc, body->a, circle->r, LINE_COLOR, color);
-            qDebug()<<"x y"<<(int)circle->tc.x<<(int)circle->tc.y;
-            setcolor_do_undo(((Ball*)shape->data)->color,p.drawChord((int)circle->tc.x,(int)circle->tc.y,circle->r,circle->r,0,5760););
+            //qDebug()<<"x y"<<(int)circle->tc.x<<(int)circle->tc.y;
+            QColor paint_color;
+            int r=(int)circle->r;
+            if (shape->collision_type==3)
+                paint_color=QColor::fromRgb(100,100,255);
+                else
+                paint_color=((Ball*)shape->data)->color;
+            setcolor_do_undo(paint_color,p.drawChord((int)circle->tc.x-r,(int)circle->tc.y-r,r*2,r*2,0,5760););
             break;
         }
         case CP_SEGMENT_SHAPE: {
