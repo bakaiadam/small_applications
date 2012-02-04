@@ -204,100 +204,104 @@ class GameMap{
 class AlapMap:public GameMap
 {//van benne pattogas.
     QVector<int> pontok;
-    QPointF elso,masodik;
-    QRegion tilos_helyek;
+    QPoint elso,masodik;
+//    QRegion tilos_helyek;
 
-    QVector<cpBody*> bodies;
-        cpBody *porgobody;
+//    QVector<cpBody*> bodies;
+    QVector<cpBody*> bodies_for_update;
 
     cpSpace *space;
     cpFloat timeStep;
 public:
+    void add_walls()
+    {
+        QPoint left_top(0,0);
+        QPoint right_bottom(w,h);
+        QVector<QPoint> corner;
+        corner.push_back(left_top);
+        corner.push_back(QPoint(right_bottom.x(),left_top.y()));
+        corner.push_back(right_bottom);
+        corner.push_back(QPoint(left_top.x(),right_bottom.y()));
+        for (int i=0;i<4;i++)
+        {
+            cpShape *ground = cpSegmentShapeNew(space->staticBody, cpv((float)(corner[i].x()),
+                                                                       (float)corner[i].y())
+                                                , cpv((float)corner[(i+1)%4].x(), (float)corner[(i+1)%4].y()), 0);
+              cpShapeSetFriction(ground, 0.0);
+            cpShapeSetElasticity(ground, 1.0f);
+            cpSpaceAddShape(space, ground);
+        }
+    }
+
+    void add_pos_reset_bodies()//ezek azok amelyknek a collision id-je 2
+{
+        cpBody *porgobody;
+
+        cpShape *shape;
+
+        // We create an infinite mass rogue body to attach the line segments too
+        // This way we can control the rotation however we want.
+        porgobody = cpBodyNew(INFINITY, INFINITY);
+        cpBodySetPos(porgobody,cpv(200,150));
+        cpBodySetAngVel(porgobody, 0.4f);
+        // Set up the static box.
+        cpVect a = cpv(0, -50);
+        cpVect b = cpv(0, 50);
+        cpVect c = cpv( 200,  200);
+        cpVect d = cpv( 200, -200);
+
+        shape = cpSpaceAddShape(space, cpSegmentShapeNew(porgobody, a, b, 0.0f));
+        cpShapeSetElasticity(shape, 1.0f);
+        cpShapeSetFriction(shape, 1.0f);
+        shape->collision_type=2;
+        bodies_for_update.push_back(porgobody);
+    }
+    void add_simple_bodies()
+    {
+        /*    cpVect * v= new cpVect[4];
+            v[0].x=0;
+            v[0].y=0;
+            v[1].x=5;
+            v[1].y=0;
+            v[2].x=5;
+            v[2].y=600;
+            v[3].x=0;
+            v[3].y=600;
+        */
+            float sw=20;
+            float sh=10;
+            cpVect theVerts[] ={
+            cpv( - sw, - sh),
+            cpv( - sw,   sh),
+            cpv(   sw,   sh),
+            cpv(   sw, - sh)
+            };
+            float mass=0.2;
+    //        cpSpaceAddShape(space, cpPolyShapeNew(cpSpaceAddBody(space, cpBodyNew(mass, cpMomentForPoly(mass, 4, theVerts, cpv(100,100)))) , 4, theVerts, cpv(100,100)));
+            cpSpaceAddShape(space, cpPolyShapeNew( space->staticBody, 4, theVerts, cpv(100,100)));
+
+    }
+
     AlapMap()
     {
         //http://files.slembcke.net/chipmunk/release/ChipmunkLatest-Docs/#cpShape
       //http://chipmunk-physics.net/release/ChipmunkLatest-Docs/#cpShape
+        /** space:melyik térben zajolik a dolog,a két nulla pedig a z h milyen collision_id-ju dolgok összeütkörzésénél történjen valami.a mi esetünkben mivel senkinek sem lett beállítva érték,ezért mindegyiknek az értéke nulla,így most minden esetben kiírja azt h collision.*/
+
         int dist_from_border=40;
-        elso=QPointF(dist_from_border,dist_from_border);
-        masodik=QPointF(w-dist_from_border,h-dist_from_border);
-        tilos_helyek+=(QRect(0,200,700,20)  );
-        tilos_helyek+=(QRect(100,300,700,20));
+                elso=QPoint(dist_from_border,dist_from_border);
+                masodik=QPoint(w-dist_from_border,h-dist_from_border);
+
 
         timeStep = 1.0/60.0;
         cpVect gravity = cpv(0, 0);
         space = cpSpaceNew();
         cpSpaceSetGravity(space, gravity);
 
-  //      cpShape *ground = cpSegmentShapeNew(space->staticBody, cpv(0, 0), cpv(0, 600), 0);
-        cpShape *ground = cpSegmentShapeNew(space->staticBody, cpv(0, 0), cpv(0, 600), 0);
-          cpShapeSetFriction(ground, 0.0);
-        cpShapeSetElasticity(ground, 1.0f);
-        cpSpaceAddShape(space, ground);
-
-    /*    cpVect * v= new cpVect[4];
-        v[0].x=0;
-        v[0].y=0;
-        v[1].x=5;
-        v[1].y=0;
-        v[2].x=5;
-        v[2].y=600;
-        v[3].x=0;
-        v[3].y=600;
-    */
-        float sw=20;
-        float sh=10;
-        cpVect theVerts[] ={
-        cpv( - sw, - sh),
-        cpv( - sw,   sh),
-        cpv(   sw,   sh),
-        cpv(   sw, - sh)
-        };
-        float mass=0.2;
-//        cpSpaceAddShape(space, cpPolyShapeNew(cpSpaceAddBody(space, cpBodyNew(mass, cpMomentForPoly(mass, 4, theVerts, cpv(100,100)))) , 4, theVerts, cpv(100,100)));
-        cpSpaceAddShape(space, cpPolyShapeNew( space->staticBody, 4, theVerts, cpv(100,100)));
+add_walls();//maybe there should be an add_standing_static function,that contains add_walls
+add_pos_reset_bodies();
+add_simple_bodies();//non static objects.
 cpSpaceAddCollisionHandler(space,1,2,collision,NULL,NULL,NULL,NULL);
-
-/** space:melyik térben zajolik a dolog,a két nulla pedig a z h milyen collision_id-ju dolgok összeütkörzésénél történjen valami.a mi esetünkben mivel senkinek sem lett beállítva érték,ezért mindegyiknek az értéke nulla,így most minden esetben kiírja azt h collision.*/
-//if (0)
-{
-
-    cpShape *shape;
-
-    // We create an infinite mass rogue body to attach the line segments too
-    // This way we can control the rotation however we want.
-    porgobody = cpBodyNew(INFINITY, INFINITY);
-    cpBodySetPos(porgobody,cpv(200,150));
-    cpBodySetAngVel(porgobody, 0.4f);
-    // Set up the static box.
-    cpVect a = cpv(0, -50);
-    cpVect b = cpv(0, 50);
-    cpVect c = cpv( 200,  200);
-    cpVect d = cpv( 200, -200);
-
-    shape = cpSpaceAddShape(space, cpSegmentShapeNew(porgobody, a, b, 0.0f));
-    cpShapeSetElasticity(shape, 1.0f);
-    cpShapeSetFriction(shape, 1.0f);
-    shape->collision_type=2;
-}
-
-ground = cpSegmentShapeNew(space->staticBody, cpv(0, 0), cpv(800, 0), 0);
-        //ground=cpPolyShapeNew(space->staticBody,4,theVerts,/*cpvzero*/cpv(100,100));
-//        cpShape *cpPolyShapeNew(cpBody *body, int numVerts, cpVect *verts, cpVect offset)
-        cpShapeSetFriction(ground, 0.0);
-        cpShapeSetElasticity(ground, 1.0f);
-        cpSpaceAddShape(space, ground);
-
-        ground = cpSegmentShapeNew(space->staticBody, cpv(0, 600), cpv(800, 600), 0);
-        cpShapeSetFriction(ground, 0.0);
-        cpShapeSetElasticity(ground, 1.0f);
-        cpSpaceAddShape(space, ground);
-
-        ground = cpSegmentShapeNew(space->staticBody, cpv(700, 0), cpv(700, 600), 0);
-        cpShapeSetFriction(ground, 0.0);
-        cpShapeSetElasticity(ground, 1.0f);
-        cpSpaceAddShape(space, ground);
-
-        //        tilos_helyek=tilos_helyek.intersect(QRect(0,200,700,20) );
 
     }
 
@@ -329,16 +333,6 @@ ground = cpSegmentShapeNew(space->staticBody, cpv(0, 0), cpv(800, 0), 0);
         }
 */
       cpSpaceStep(space, timeStep);
-
-#define a(i,start,stop) if (b.size()>i) if (distance(b[i]->pos,stop)<30 || tilos_helyek.contains((QPoint(b[i]->pos.x(),b[i]->pos.y()) ) ) ) \
-        {\
-            if (distance(b[i]->pos,stop)<30 ) pontok[i]++;\
-            b[i]->pos=start;\
-            b[i]->direction=QPointF();\
-        }
-        a(0,elso,masodik);
-        a(1,masodik,elso);
-        #undef a
 
 /*
         int i=0;
@@ -376,7 +370,8 @@ ground = cpSegmentShapeNew(space->staticBody, cpv(0, 0), cpv(800, 0), 0);
     void update_canvas(QVector<Ball*> &balls,QPainter &p)
     {
         cpFloat dt = 1.0f/60.0f;
-        cpBodyUpdatePosition(porgobody, dt);
+        foreach(cpBody *b,bodies_for_update)
+            cpBodyUpdatePosition(b, dt);
 
 
         p.fillRect(QRect(0,0,w,h),Qt::white);
@@ -1019,7 +1014,7 @@ drawShape(cpShape *shape, void *painter_pointer)//FIXME:ebbol tenyleg lehetne el
         case CP_CIRCLE_SHAPE: {
             cpCircleShape *circle = (cpCircleShape *)shape;
             //ChipmunkDebugDrawCircle(circle->tc, body->a, circle->r, LINE_COLOR, color);
-//            qDebug()<<"x y"<<(int)circle->tc.x<<(int)circle->tc.y;
+            qDebug()<<"x y"<<(int)circle->tc.x<<(int)circle->tc.y;
             setcolor_do_undo(((Ball*)shape->data)->color,p.drawChord((int)circle->tc.x,(int)circle->tc.y,circle->r,circle->r,0,5760););
             break;
         }
