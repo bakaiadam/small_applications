@@ -98,8 +98,10 @@ public:
     cpBody * body;
     QColor color;
     AlapMap * a;
+    int reset;
     Ball()//ha így hivod akkor kliensbol vagy cska azert hasznalod h kenyelmesen le legyenek kezelve a direction-ök.
     {
+        reset=0;
       space=0;
       body=0;
     }
@@ -108,6 +110,14 @@ public:
     {
         cpBodySetPos(body,cpv((int)startpos.x(),(int)startpos.y()));
         cpBodySetVel(body,cpv(0,0));
+    }
+    void reset_vel()
+    {
+        reset=1;
+//        if (body)
+//            cpBodyResetForces(body);
+            //cpBodySetVel(body,cpv(0,0));
+        direction=QPointF();
     }
 
 /*    void in_dest(int index)
@@ -147,7 +157,6 @@ public:
 
     void add_move(QPointF r)
     {
-        QPointF prev_mouse_pos2=r;
         direction+=r;
 //        qDebug()<<direction;
     }
@@ -157,7 +166,11 @@ public:
       pos.rx()=v.x;
       pos.ry()=v.y;
       if (body)
+    {
+          if (reset)
+              cpBodySetVel(body,cpv(0,0));
       cpBodyApplyImpulse(body,cpv(direction.rx()*0.05,direction.ry()*0.05),cpv(0,0));
+     }
       direction.rx()=0;
       direction.ry()=0;
 //        cpBodyApplyForce(body,cpv(direction.rx()*0.001,direction.ry()*0.001),cpv(0,0));
@@ -189,8 +202,11 @@ public:
         QByteArray msg;
         qint32 dirx=(qint32)getdirection().rx();
         qint32 diry=(qint32)getdirection().ry();
+        qint32 r=(qint32)reset;
+        reset=0;
         msg.append (  (char *)&dirx,4 );
         msg.append (  (char *)&diry,4 );
+        msg.append (  (char *)&r,4 );
         return msg;
     }
 
@@ -369,7 +385,7 @@ void add_dest_points()
         cpSpaceSetGravity(space, gravity);
 
 add_walls();//maybe there should be an add_standing_static function,that contains add_walls
-add_pos_reset_bodies();
+//add_pos_reset_bodies();
 add_simple_bodies();//non static objects.
 add_dest_points();
 cpSpaceAddCollisionHandler(space,1,2,collision,NULL,NULL,NULL,NULL);
@@ -543,6 +559,34 @@ public:
         return (a.contains(e->key()));
     }
 
+    void timer()
+    {
+        QPoint move;
+        if (pushed[0])
+        {
+            move+=QPoint(-1,0);
+        }
+        if (pushed[1])
+        {
+            move+=QPoint(0,-1);
+
+        }
+        if (pushed[2])
+        {
+            move+=QPoint(1,0);
+
+        }
+        if (pushed[3])
+        {
+            move+=QPoint(0,1);
+
+        }
+        move*=7000;
+//        qDebug()<<move;
+        b->reset_vel();
+        b->add_move(move);
+
+    }
 
     void process(QKeyEvent * e)
     {
@@ -567,7 +611,7 @@ public:
             move+=QPoint(0,1);
             pushed[3]=true;
         }
-        move*=70;
+        move*=7000;
 //        qDebug()<<move;
         b->add_move(move);
   //      QCursor::setPos(QPoint(300,300));
@@ -617,8 +661,12 @@ public:
                 //b->getpos().setY(l[1].toInt());
                 qint32 dirx;
                 qint32 diry;
+                quint32 r;
                 socket->read((char*)&dirx,4);
                 socket->read((char*)&diry,4);
+                qDebug()<<"x,y:"<<dirx<<diry;
+                socket->read((char*)&r,4);
+                if (r) b->reset_vel();
                 b->getdirection().rx()+=(dirx);
                 b->getdirection().ry()+=(diry);
                 sendx=0;sendy=0;
@@ -693,7 +741,11 @@ public:
         }
     }
     void update()
-    {
+    {        if (k1_pos>=0)
+            k1->timer();
+        if (k2_pos>=0)
+            k2->timer();
+
         while (socket[0]->bytesAvailable()>0)
         {
          //   qDebug()<<"aval:"<<socket->bytesAvailable();
@@ -909,14 +961,17 @@ public:
     virtual void keyPressEvent(QKeyEvent *e)
     {
 
-     qDebug()<<e->key();
-        if (cli)
+     qDebug()<<"press:"<<e->key();
+//     return;
+     if (cli)
           cli->keyPressEvent(e);
         if (e->text()=="q")
         exit(0);
     }
     virtual void keyReleaseEvent(QKeyEvent *e)
     {
+        qDebug()<<"release:"<<e->key();
+//        return;
         if (cli)
           cli->keyReleaseEvent(e);
     }
