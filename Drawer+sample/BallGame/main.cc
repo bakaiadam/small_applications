@@ -24,12 +24,18 @@ int callbackcollision(cpArbiter *arb, cpSpace *mainSpace,
 void
 drawShape(cpShape *shape, void *painter_pointer);//FIXME:ebbol tenyleg lehetne eleg konnyen valami qbytearray-t csinalni es azt kuldeni,csak akkor el lesz festve a kep kuldes lehetosege.meg az nem lenne annyiraflexibilis,viszont sokkal gyorsabb.
 
+class controller_settings{
+public:
+    bool needed;
+    int sensitivity;
+};
+
 class client_settings{
 public:
     QString host;
-    bool keyboard1;
-    bool keyboard2;
-    bool mouse;
+    controller_settings keyboard1;
+    controller_settings keyboard2;
+    controller_settings mouse;
     bool need_image;
 };
 
@@ -508,6 +514,7 @@ public:
     BallController(){}
     void setBall(Ball * b){this->b=b;}
     Ball *b;
+    int sensitivity;
 };
 class LocalBalllController:public BallController{
 public:
@@ -520,7 +527,7 @@ public:
 
     void process(QMouseEvent * e)
     {
-        b->add_move(QCursor::pos()-def_pos);
+        b->add_move((2+sensitivity)*(QCursor::pos()-def_pos));
         QCursor::setPos(def_pos);
     }
 };
@@ -567,7 +574,7 @@ public:
             move+=QPoint(0,1);
             pushed[3]=true;
         }
-        move*=70;
+        move*=(70+sensitivity);
 //        qDebug()<<move;
         b->add_move(move);
   //      QCursor::setPos(QPoint(300,300));
@@ -662,18 +669,17 @@ public:
         k2_pos=-1;
         s=cls;
         qDebug()<<"host"<<cls.host;
+        qDebug()<<cls.keyboard1.needed<<" "<<cls.keyboard2.needed<<" "<<cls.mouse.needed;
         bool need_image=cls.need_image;
 #define add_socket(flag,pos) if (flag) {b->push_back(new Ball());socket.push_back(new QTcpSocket() );pos=socket.size()-1;socket.last()->connectToHost(cls.host,12345);quint8 need_image_int;if (need_image) {quint8 need_image_int=1;need_image=false;}else {} socket.last()->write((char*)&need_image_int,1); }
-        add_socket(cls.keyboard1,k1_pos);
-        add_socket(cls.keyboard2,k2_pos);
-        add_socket(cls.mouse,mouse_pos);
+        add_socket(cls.keyboard1.needed,k1_pos);
+        add_socket(cls.keyboard2.needed,k2_pos);
+        add_socket(cls.mouse.needed,mouse_pos);
 #undef add_socket
-        qDebug()<<"mouse:"<<cls.mouse;
-        qDebug()<<"cls k1:"<<cls.keyboard1;
-        qDebug()<<"cls k2:"<<cls.keyboard2;
         if (mouse_pos!=-1)
         {mouse_cont=new LocalBalllController();
          mouse_cont->setBall(b->operator [](mouse_pos));
+         mouse_cont->sensitivity=cls.mouse.sensitivity;
         }
         if (k1_pos!=-1)
         {
@@ -682,6 +688,8 @@ public:
                                           68 ,//d
                                           83 );//s
             k1->setBall(b->operator [](k1_pos));
+            k1->sensitivity=cls.keyboard1.sensitivity;
+//            qDebug()<<__LINE__<<k1->sensitivity;
         }
         if (k2_pos!=-1)
         {
@@ -690,6 +698,7 @@ public:
                                           16777236 ,
                                           16777237 );
             k2->setBall(b->operator [](k2_pos));
+            k2->sensitivity=cls.keyboard2.sensitivity;
         }
     }
     void update()
@@ -828,7 +837,7 @@ public:
         {
             valid_argument=true;
             client_settings cli_set;
-            cli_set.mouse=false;cli_set.keyboard1=false;cli_set.keyboard2=false;
+            cli_set.mouse.needed=false;cli_set.keyboard1.needed=false;cli_set.keyboard2.needed=false;
             if (type=="server")
                 cli_set.host="localhost";
                 else
@@ -842,9 +851,9 @@ public:
                 check_argument("mouse",cli_set.mouse);
 #undef check_argument
 */
-                if (arglist[i]=="k1")  {cli_set.keyboard1=true;need_image=true;}
-                if (arglist[i]=="k2")  {cli_set.keyboard2=true;need_image=true;}
-                if (arglist[i]=="mouse")  {cli_set.mouse=true;need_image=true;}
+                if (arglist[i]=="k1") update_controller_settings(cli_set.keyboard1,arglist,i,need_image);
+                if (arglist[i]=="k2") update_controller_settings(cli_set.keyboard2,arglist,i,need_image);
+                if (arglist[i]=="mouse") update_controller_settings(cli_set.mouse,arglist,i,need_image);
                 if (need_image)
                     cli_set.need_image=true;
             }
@@ -857,6 +866,17 @@ public:
         m.unlock();
         start(width,height);
                 QWidget::startTimer(8);
+    }
+    void static update_controller_settings(controller_settings &c,const QStringList &arglist,int index,bool &need_image)
+    {
+        c.needed=true;
+        c.sensitivity=0;
+        int i=index;
+        if (i+1>=arglist.size()) return;
+                            bool ok;
+                            int sensitivity=arglist[i+1].toInt(&ok);
+                            if (ok) c.sensitivity=sensitivity;
+                            need_image=true;
     }
 
     void timerEvent(QTimerEvent *e){
