@@ -752,6 +752,7 @@ public:
     {
         quint8 send_image_int;
                 socket->read((char*)&send_image_int,1);
+                qDebug()<<__LINE__<<send_image_int;
                 if (send_image_int) send_image=true;
                 else send_image=false;
     }
@@ -1001,6 +1002,8 @@ public:
                 if (need_image)
                     cli_set.need_image=true;
             }
+            if (arglist.contains("no_need_image"))
+                cli_set.need_image=false;
             //FIXME:egyelore mindig true lesz a need_image.az h melyik socketen kerek kepoeet azt majd egy lentebbi szint fogja kitalalni.
             cli=new client(cli_set,remoteballs,gamecanvas);
         }
