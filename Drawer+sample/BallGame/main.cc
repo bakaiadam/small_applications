@@ -144,6 +144,7 @@ public:
 */
     Ball(QPointF f,cpSpace *space,QColor color,GameMap * a):pos(f),startpos(f),color(color),a(a)
     {
+
       this->space=space;
 
       cpFloat radius = 5;
@@ -160,6 +161,7 @@ public:
       ShapeData * s=new ShapeData;
       s->map=a;
       s->color=color;
+      qDebug()<<s->color.red()<<s->color.green()<<s->color.blue();
       s->shape=shape;
       shape->data=s;
 
@@ -274,16 +276,6 @@ class AlapMap:public GameMap
     cpSpace *space;
     cpFloat timeStep;
 public:
-/*    void in_dest(Ball * b,int index)
-    {
-        int ball_index=balls.indexOf(b);
-        if (ball_index!=index)
-        {    b->points++;
-            b->reset_pos();
-        }
-        //ez egy callback hogyha valamelyik labda beleer valamelyik dest pos-ba.
-    }
-*/
     void add_walls()
     {
         QPoint left_top(0,0);
@@ -374,16 +366,6 @@ void add_dest_points()
     }
     void add_simple_bodies()
     {
-        /*    cpVect * v= new cpVect[4];
-            v[0].x=0;
-            v[0].y=0;
-            v[1].x=5;
-            v[1].y=0;
-            v[2].x=5;
-            v[2].y=600;
-            v[3].x=0;
-            v[3].y=600;
-        */
             float sw=20;
             float sh=10;
             cpVect theVerts[] ={
@@ -425,18 +407,7 @@ add_walls();//maybe there should be an add_standing_static function,that contain
 add_pos_reset_bodies();
 add_simple_bodies();//non static objects.
 add_dest_points();
-/*
-cpSpaceAddCollisionHandler(space,1,2,collision,NULL,NULL,NULL,NULL);
-cpSpaceAddCollisionHandler(space,0,3,nocollision,NULL,NULL,NULL,NULL);
-cpSpaceAddCollisionHandler(space,1,3,callbackcollision,NULL,NULL,NULL,NULL);
-cpSpaceAddCollisionHandler(space,2,3,nocollision,NULL,NULL,NULL,NULL);
-*/
-//az osszes lehetseges part fel kell venni.
-/*cpSpaceAddCollisionHandler(space,1,2,callbackcollision,NULL,NULL,NULL,NULL);
-cpSpaceAddCollisionHandler(space,0,3,callbackcollision,NULL,NULL,NULL,NULL);
-cpSpaceAddCollisionHandler(space,1,3,callbackcollision,NULL,NULL,NULL,NULL);
-cpSpaceAddCollisionHandler(space,2,3,callbackcollision,NULL,NULL,NULL,NULL);
-*///1es:labda,2:es olyan dolog ami visszadob,3as:celok
+//1es:labda,2:es olyan dolog ami visszadob,3as:celok
 for (int q=0;q<UPPERLIMIT;q++)
     for (int qq=q;qq<UPPERLIMIT;qq++)
         cpSpaceAddCollisionHandler(space,q,qq,callbackcollision,0,0,0,0);
@@ -458,55 +429,7 @@ for (int q=0;q<UPPERLIMIT;q++)
 
     void gameplay_logic(QVector<Ball*> &b)
     {
-  /*      for (int i=0;i<b.size();i++)
-        {
-            QPointF icenter(b.operator [](i)->getpos().rx()+ballsize/2,b.operator [](i)->getpos().ry()+ballsize/2  );
-            for (int j=i+1;j<b.size();j++)
-            {
-                QPointF jcenter(
-                            b.operator [](j)->getpos().rx()+ballsize/2,
-                            b.operator [](j)->getpos().ry()+ballsize/2  );
-                if (distance(icenter,jcenter)<ballsize)
-                    {
-                    calculate_collision(b.operator [](i),b.operator [](j));
-                    }
-            }
-            wall_collision(b.operator [](i));
-        }
-*/
       cpSpaceStep(space, timeStep);
-
-/*
-        int i=0;
-        foreach(Ball * ab,*b)
-        {
-            if (i==pos.size())
-                pos.push_back(1);
-            else
-            {
-
-                qreal rx=ab->getpos().rx(),ry=ab->getpos().ry();
-                if (pos[i]==3 && rx<border && ry<border)
-                {
-                    ab->lap++;
-                    pos[i]=0;
-                }
-                if (pos[i]==0 && rx>w-border && ry<border)
-                {
-                    pos[i]=1;
-                }
-                if (pos[i]==1 && rx>w-border && ry>h-border)
-                {
-                    pos[i]=2;
-                }
-                if (pos[i]==2 && rx<border && ry>h-border)
-                {
-                    pos[i]=3;
-                }
-            }
-            i++;
-        }
-*/
     }
 
     void update_canvas(QVector<Ball*> &balls,QPainter &p)
@@ -527,29 +450,6 @@ for (int q=0;q<UPPERLIMIT;q++)
                        p.drawText(i*w/balls.size(),10,QString::number(b->points ) );
                    i++;
                    }
-
-        /*
-        p.fillRect(QRect(0,0,w,h),Qt::white);
-                int i=0;
-                foreach (QRect r,tilos_helyek.rects() )
-                {
-                    p.fillRect(r,Qt::green );
-                }
-
-                foreach (Ball *b,balls)
-                {
-                    p.setBrush(QBrush(QColor::fromHsv(i*360/balls.size()+1,255,255) ));
-                    p.drawChord(b->getpos().rx(),b->getpos().ry(),ballsize,ballsize,0,5760);
-                    p.drawText(i*w/balls.size(),10,QString::number(pontok[i] ) );
-                i++;
-                }
-                p.setBrush(Qt::NoBrush);
-*/
-        //                p.drawRect(0,0,border,border);
-  //              p.drawRect(w-border,0,border,border);
-    //            p.drawRect(w-border,h-border,border,border);
-      //          p.drawRect(0,h-border,border,border);
-
                 p.end();
     }
 
@@ -585,6 +485,166 @@ for (int q=0;q<UPPERLIMIT;q++)
     }
 
 };
+
+
+class WrestlingMap:public GameMap
+{
+    QVector<int> pontok;
+    QPoint elso,masodik;
+    QVector<Ball *> balls;
+//    QRegion tilos_helyek;
+
+//    QVector<cpBody*> bodies;
+    QVector<cpBody*> bodies_for_update;
+
+    QVector<QPoint> dest_points;
+    cpSpace *space;
+    cpFloat timeStep;
+public:
+    void add_walls()
+    {
+        QPoint left_top(0,0);
+        QPoint right_bottom(w,h);
+        QVector<QPoint> corner;
+        corner.push_back(left_top);
+        corner.push_back(QPoint(right_bottom.x(),left_top.y()));
+        corner.push_back(right_bottom);
+        corner.push_back(QPoint(left_top.x(),right_bottom.y()));
+        for (int i=0;i<4;i++)
+        {
+            cpShape *ground = cpSegmentShapeNew(space->staticBody, cpv((float)(corner[i].x()),
+                                                                       (float)corner[i].y())
+                                                , cpv((float)corner[(i+1)%4].x(), (float)corner[(i+1)%4].y()), 0);
+              cpShapeSetFriction(ground, 0.0);
+            cpShapeSetElasticity(ground, 1.0f);
+            cpSpaceAddShape(space, ground);
+            ShapeData * s=new ShapeData;
+            s->map=this;
+            s->color=QColor::fromRgb(0,0,0);
+            s->shape=ground;
+            ground->collision_type=RESETOBJ;
+            ground->data=s;
+        }
+    }
+    void add_simple_bodies()
+    {
+            float sw=20;
+            float sh=10;
+            cpVect theVerts[] ={
+            cpv( - sw, - sh),
+            cpv( - sw,   sh),
+            cpv(   sw,   sh),
+            cpv(   sw, - sh)
+            };
+            float mass=0.2;
+    //        cpSpaceAddShape(space, cpPolyShapeNew(cpSpaceAddBody(space, cpBodyNew(mass, cpMomentForPoly(mass, 4, theVerts, cpv(100,100)))) , 4, theVerts, cpv(100,100)));
+            cpShape * shape=cpPolyShapeNew( space->staticBody, 4, theVerts, cpv(100,100));
+            cpSpaceAddShape(space, shape);
+
+            ShapeData * s=new ShapeData;
+            s->map=this;
+            s->color=QColor::fromRgb(0,0,120);
+            s->shape=shape;
+            shape->data=s;
+
+    }
+
+    WrestlingMap()
+    {
+        //http://files.slembcke.net/chipmunk/release/ChipmunkLatest-Docs/#cpShape
+      //http://chipmunk-physics.net/release/ChipmunkLatest-Docs/#cpShape
+        /** space:melyik térben zajolik a dolog,a két nulla pedig a z h milyen collision_id-ju dolgok összeütkörzésénél történjen valami.a mi esetünkben mivel senkinek sem lett beállítva érték,ezért mindegyiknek az értéke nulla,így most minden esetben kiírja azt h collision.*/
+
+        int dist_from_border=40;
+                elso=QPoint(dist_from_border,dist_from_border);
+                masodik=QPoint(w-dist_from_border,h-dist_from_border);
+
+
+        timeStep = 1.0/60.0;
+        cpVect gravity = cpv(0, 0);
+        space = cpSpaceNew();
+        cpSpaceSetGravity(space, gravity);
+
+add_walls();//maybe there should be an add_standing_static function,that contains add_walls
+//add_pos_reset_bodies();
+//add_simple_bodies();//non static objects.
+//add_dest_points();
+//1es:labda,2:es olyan dolog ami visszadob,3as:celok
+for (int q=0;q<UPPERLIMIT;q++)
+    for (int qq=q;qq<UPPERLIMIT;qq++)
+        cpSpaceAddCollisionHandler(space,q,qq,callbackcollision,0,0,0,0);
+    }
+
+    Ball * new_user()
+    {
+//      qDebug()<<(QColor::fromHsv(0,255,255));
+        Ball * new_ball=0;
+        if (balls.size()==0)
+{            new_ball=new Ball(elso,space,QColor::fromHsv(0,255,255),this );
+            ((ShapeData*)new_ball->shape->data)->index=0;
+ }       if (balls.size()==1)
+  {          new_ball=new Ball(masodik,space,QColor::fromHsv(180,255,255),this );
+            ((ShapeData*)new_ball->shape->data)->index=1;
+        }     if (new_ball)
+            balls.push_back(new_ball);
+        return new_ball;
+    }
+
+    void gameplay_logic(QVector<Ball*> &b)
+    {
+      cpSpaceStep(space, timeStep);
+    }
+
+    void update_canvas(QVector<Ball*> &balls,QPainter &p)
+    {//a balls parameter mar nem is kell.
+        cpFloat dt = 1.0f/60.0f;
+        foreach(cpBody *b,bodies_for_update)
+            cpBodyUpdatePosition(b, dt);
+
+
+        p.fillRect(QRect(0,0,w,h),Qt::white);
+        p.setBrush(QBrush(QColor::fromRgb(0,0,0) ) );
+        cpSpaceEachShape(space, drawShape, &p);
+
+        int i=0;
+        foreach (Ball *b,balls)
+                   {
+                       p.setBrush(QBrush(QColor::fromHsv(i*360/balls.size()+1,255,255) ));
+                       p.drawText(i*w/balls.size(),10,QString::number(b->points ) );
+                   i++;
+                   }
+                p.end();
+    }
+
+     virtual void process(QVector<Ball*> &balls, QPainter &p)
+     {//FIXME:a balls ref valszeg tök felesleges.
+        while (pontok.size()<balls.size())
+            pontok.push_back(0);
+           gameplay_logic(balls);
+           update_canvas(balls,p);
+     }
+
+    int collision(ShapeData* a,ShapeData *b)
+    {//igaz,ha ütköznek.hamis ha átmennek egymáson.
+      if (balls.size()==1) return TRUE;
+#define paircond(w,e) (a->get_col()==e && b->get_col()==w) || (b->get_col()==e && a->get_col()==w)
+#define get_index(q) (a->get_col()==q?a->index:b->index)
+        if (paircond(RESETOBJ,BALL))
+        {
+            int idx=get_index(BALL);
+            balls[ qMin ( (idx ^ 1) & 1,balls.size()-1) ]->points++;//FIXME:2-nél több játékosnál hogyan kapják a pontot?
+            foreach(Ball * b, balls)
+              {
+                b->reset_pos();
+              }
+        }
+        if (a->get_col()==DESTOBJ || b->get_col()==DESTOBJ)
+            return FALSE;
+        return TRUE;
+    }
+
+};
+
 
 
 
@@ -835,8 +895,9 @@ public:
     QVector<int> pos;
     server(QVector<Ball*> *remoteballs,QImage * c):b(remoteballs),canvas(c)
     {
-        jatekmap=new AlapMap;
-        tcpServer = new QTcpServer();
+        //jatekmap=new AlapMap;
+      jatekmap=new WrestlingMap;
+              tcpServer = new QTcpServer();
         if (!tcpServer->listen(QHostAddress::Any,12345)) {
             qDebug()<<"listen nem sikerult";
             exit(0);
@@ -944,7 +1005,7 @@ public:
             cli=new client(cli_set,remoteballs,gamecanvas);
         }
         else if (!valid_argument || (type=="client") ) {
-            qFatal("hibas parameterezes!!!parameterezes:app_name [server|client] [hostname kliensnel] k1,k2,mouse.amelyiket kered olyan kontrollered lesz.nem lehet olyat indítani ahol egyiket sem kered.");
+            qFatal("hibas parameterezes!!!parameterezes:app_name [server|client] [hostname kliensnel] k1,k2,mouse.amelyiket kered olyan kontrollered lesz.kliensnel nem lehet olyat indítani ahol egyiket sem kered.szervernel ha nem kersz semmilyen kontrolt,akkor csak spectator leszel.minden kontroller utan lehet irni szamot,h mennyi legyen az erzekenysege.lehet pozitiv es negativ is.");
         }
         m.unlock();
         start(width,height);
@@ -1206,7 +1267,6 @@ int collision(cpArbiter *arb, cpSpace *mainSpace,
 void
 drawShape(cpShape *shape, void *painter_pointer)//FIXME:ebbol tenyleg lehetne eleg konnyen valami qbytearray-t csinalni es azt kuldeni,csak akkor el lesz festve a kep kuldes lehetosege.meg az nem lenne annyiraflexibilis,viszont sokkal gyorsabb.
 {
-
 #define setcolor_do_undo(color,action) { \
     QBrush b_orig=p.brush();\
     QPen p_orig=p.pen();\
@@ -1231,7 +1291,12 @@ drawShape(cpShape *shape, void *painter_pointer)//FIXME:ebbol tenyleg lehetne el
             if (shape->collision_type==3)
                 paint_color=QColor::fromRgb(100,100,255);
                 else
-                paint_color=((Ball*)shape->data)->color;
+                paint_color=( (ShapeData*)((Ball*)shape->data) )->color;
+            //qDebug()<<__LINE__<<circle->tc.x<<circle->tc.y<<paint_color.red()<<paint_color.green()<<paint_color.blue()<<r;
+            //paint_color=QColor::fromRgb(0,0,0);
+           // p.setBrush(paint_color);
+           // p.setPen(paint_color);
+//p.drawChord((int)circle->tc.x-r,(int)circle->tc.y-r,r*2,r*2,0,5760);
             setcolor_do_undo(paint_color,p.drawChord((int)circle->tc.x-r,(int)circle->tc.y-r,r*2,r*2,0,5760););
             break;
         }
