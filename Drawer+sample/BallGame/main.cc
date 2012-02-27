@@ -1,10 +1,11 @@
 #include <../drawer.hh>
 //#include <chipmunk/chipmunk.h>
 #include <chipmunk_private.h>
-#define ballsize 10
+#define ballsize 80
 #define w 800
 #define h 600
 #define border 100
+const int dist_from_border=200;
 
 #include <QTcpSocket>
 #include <QTcpServer>
@@ -147,7 +148,7 @@ public:
 
       this->space=space;
 
-      cpFloat radius = 5;
+      cpFloat radius = ballsize/2;
       cpFloat mass = 1;
       cpFloat moment = cpMomentForCircle(mass, 0, radius, cpvzero);
 
@@ -392,11 +393,8 @@ void add_dest_points()
         //http://files.slembcke.net/chipmunk/release/ChipmunkLatest-Docs/#cpShape
       //http://chipmunk-physics.net/release/ChipmunkLatest-Docs/#cpShape
         /** space:melyik térben zajolik a dolog,a két nulla pedig a z h milyen collision_id-ju dolgok összeütkörzésénél történjen valami.a mi esetünkben mivel senkinek sem lett beállítva érték,ezért mindegyiknek az értéke nulla,így most minden esetben kiírja azt h collision.*/
-
-        int dist_from_border=40;
                 elso=QPoint(dist_from_border,dist_from_border);
                 masodik=QPoint(w-dist_from_border,h-dist_from_border);
-
 
         timeStep = 1.0/60.0;
         cpVect gravity = cpv(0, 0);
@@ -555,7 +553,6 @@ public:
       //http://chipmunk-physics.net/release/ChipmunkLatest-Docs/#cpShape
         /** space:melyik térben zajolik a dolog,a két nulla pedig a z h milyen collision_id-ju dolgok összeütkörzésénél történjen valami.a mi esetünkben mivel senkinek sem lett beállítva érték,ezért mindegyiknek az értéke nulla,így most minden esetben kiírja azt h collision.*/
 
-        int dist_from_border=40;
                 elso=QPoint(dist_from_border,dist_from_border);
                 masodik=QPoint(w-dist_from_border,h-dist_from_border);
 
@@ -626,9 +623,10 @@ for (int q=0;q<UPPERLIMIT;q++)
 
     int collision(ShapeData* a,ShapeData *b)
     {//igaz,ha ütköznek.hamis ha átmennek egymáson.
-      if (balls.size()==1) return TRUE;
+      if (balls.size()==0) return TRUE;
 #define paircond(w,e) (a->get_col()==e && b->get_col()==w) || (b->get_col()==e && a->get_col()==w)
 #define get_index(q) (a->get_col()==q?a->index:b->index)
+      qDebug()<<__LINE__<<a->get_col()<<b->get_col();
         if (paircond(RESETOBJ,BALL))
         {
             int idx=get_index(BALL);
