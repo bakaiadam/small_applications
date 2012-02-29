@@ -820,7 +820,7 @@ public:
         qDebug()<<"host"<<cls.host;
         qDebug()<<cls.keyboard1.needed<<" "<<cls.keyboard2.needed<<" "<<cls.mouse.needed;
         bool need_image=cls.need_image;
-#define add_socket(flag,pos) if (flag) {b->push_back(new Ball());socket.push_back(new QTcpSocket() );pos=socket.size()-1;socket.last()->connectToHost(cls.host,12345);quint8 need_image_int;if (need_image) {quint8 need_image_int=1;need_image=false;}else {} socket.last()->write((char*)&need_image_int,1); }
+#define add_socket(flag,pos) if (flag) {b->push_back(new Ball());socket.push_back(new QTcpSocket() );pos=socket.size()-1;socket.last()->connectToHost(cls.host,12345);quint8 need_image_int;if (need_image) {quint8 need_image_int=1;need_image=false;}else {} socket.last()->waitForConnected();socket.last()->write((char*)&need_image_int,1);socket.last()->flush(); }
         add_socket(cls.keyboard1.needed,k1_pos);
         add_socket(cls.keyboard2.needed,k2_pos);
         add_socket(cls.mouse.needed,mouse_pos);
@@ -862,6 +862,7 @@ public:
         for(int i=0;i<qMin(b->size(),socket.size());i++)
         {
         socket[i]->write(b->operator [](i)->toarray());
+        socket[i]->flush();
         //qDebug()<<        b->operator [](i)->direction.rx()<<" "<<b->operator [](i)->direction.ry();
         b->operator [](i)->direction.rx()=0;
         b->operator [](i)->direction.ry()=0;
