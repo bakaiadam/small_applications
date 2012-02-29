@@ -1078,7 +1078,7 @@ public:
         if (cli)
           cli->keyPressEvent(e);
         if (e->text()=="q")
-        exit(0);
+            close();
     }
     virtual void keyReleaseEvent(QKeyEvent *e)
     {
