@@ -94,7 +94,7 @@ void readimage(QTcpSocket * socket, QImage *img)
 //    QByteArray ba=socket->read(size);
 //   QBuffer buf(&ba,0);
 //    buf.open(QIODevice::ReadOnly);
-    while (socket->bytesAvailable()<0)
+    while (socket->bytesAvailable()<size)
         socket->waitForReadyRead();
     img->load(socket,"jpg");
 }
@@ -225,6 +225,8 @@ public:
         qint32 diry=(qint32)getdirection().ry();
         msg.append (  (char *)&dirx,4 );
         msg.append (  (char *)&diry,4 );
+        //qDebug()<<"client"<<dirx<<diry;
+
         return msg;
     }
 
@@ -749,6 +751,8 @@ public:
     RemoteBallController(QTcpSocket *socket):socket(socket)
     {
         quint8 send_image_int;
+        while (socket->bytesAvailable()<1)
+            socket->waitForReadyRead();
                 socket->read((char*)&send_image_int,1);
                 qDebug()<<__LINE__<<send_image_int;
                 if (send_image_int) send_image=true;
@@ -763,10 +767,14 @@ public:
 
                 //b->getpos().setX(l[0].toInt());
                 //b->getpos().setY(l[1].toInt());
-                qint32 dirx;
-                qint32 diry;
+                qint32 dirx=0;
+                qint32 diry=0;
+                while (socket->bytesAvailable()<8)
+                    socket->waitForReadyRead();
                 socket->read((char*)&dirx,4);
                 socket->read((char*)&diry,4);
+
+                //qDebug()<<"server"<<dirx<<diry;
                 b->getdirection().rx()+=(dirx);
                 b->getdirection().ry()+=(diry);
                 sendx=0;sendy=0;
